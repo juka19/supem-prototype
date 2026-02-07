@@ -41,9 +41,9 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
 
     const dMaxX = d3.max(data.nodes, n => n.x + n.w) || 1;
     const dMaxY = d3.max(data.nodes, n => n.y + n.h) || 1;
-    const gW = innerW * 0.65;
+    const gW = innerW * 0.92;
     const sX = gW / dMaxX;
-    const sY = (innerH * 0.88) / dMaxY;
+    const sY = (innerH * 0.98) / dMaxY;
     const sc = Math.min(sX, sY);
 
     const pY = (innerH - dMaxY * sc) / 2;
@@ -93,12 +93,11 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const rootNode = data.nodes.find(n => n.tier === 0);
 
     // ── Coordinate scaling ──
-    // Use 65% of horizontal space for the graph; leave 35% for labels.
     const dataMaxX = d3.max(data.nodes, n => n.x + n.w) || 1;
     const dataMaxY = d3.max(data.nodes, n => n.y + n.h) || 1;
-    const graphW = innerW * 0.65;
+    const graphW = innerW * 0.92;
     const scaleX = graphW / dataMaxX;
-    const scaleY = (innerH * 0.88) / dataMaxY;
+    const scaleY = (innerH * 0.98) / dataMaxY;
     const scale = Math.min(scaleX, scaleY);
 
     const padY = (innerH - dataMaxY * scale) / 2;
