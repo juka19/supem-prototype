@@ -1,4 +1,4 @@
-# d3-playground
+# Prototype for embodied emissions dashboard
 
 Scroll-driven D3 story showing an emissions trend, component split, and tiered Sankey flows for a single country–sector pair. Currently using stub data (no actual data) for ICIO derived values.
 
