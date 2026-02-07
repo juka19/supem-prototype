@@ -1,0 +1,15 @@
+{
+  "year": 2019,
+  "country": "DEU",
+  "sector": "C29",
+  "total": 160.8,
+  "components": [
+    {"key": "upstream", "label": "Upstream (embodied in inputs)", "value": 72.1, "color": "#e45756"},
+    {"key": "domestic_va", "label": "Domestic value-added", "value": 40.3, "color": "#4c78a8"},
+    {"key": "own_direct", "label": "Own direct emissions", "value": 20.7, "color": "#f58518"},
+    {"key": "downstream", "label": "Downstream (embodied in outputs)", "value": 27.7, "color": "#72b7b2"}
+  ],
+  "notes": {
+    "accounting": "Prototype decomposition: upstream = embodied emissions from imported/domestic inputs; domestic_va = emissions from domestic value-added activities; own_direct = sector's direct emissions; downstream = emissions embodied in outputs passed to downstream users. These buckets are illustrative for the prototype."
+  }
+}

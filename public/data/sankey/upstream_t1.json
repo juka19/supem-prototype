@@ -1,0 +1,33 @@
+{
+  "direction": "upstream",
+  "root": { "id": "DEU|C29", "label": "Germany – Motor vehicles" },
+  "tier": 1,
+  "nodes": [
+    { "id": "DEU|C29",  "label": "Germany – Motor vehicles",    "tier": 0, "x": 40,  "y": 220, "w": 18, "h": 80 },
+    { "id": "CHN|C24",  "label": "China – Basic metals",        "tier": 1, "x": 260, "y": 10,  "w": 18, "h": 64 },
+    { "id": "DEU|C24",  "label": "Germany – Basic metals",      "tier": 1, "x": 260, "y": 79,  "w": 18, "h": 43 },
+    { "id": "RUS|B",    "label": "Russia – Mining & quarrying",  "tier": 1, "x": 260, "y": 127, "w": 18, "h": 31 },
+    { "id": "CHN|C20",  "label": "China – Chemicals",           "tier": 1, "x": 260, "y": 163, "w": 18, "h": 30 },
+    { "id": "DEU|D35",  "label": "Germany – Electricity & gas",  "tier": 1, "x": 260, "y": 198, "w": 18, "h": 27 },
+    { "id": "JPN|C29",  "label": "Japan – Motor vehicles",      "tier": 1, "x": 260, "y": 230, "w": 18, "h": 24 },
+    { "id": "USA|C24",  "label": "USA – Basic metals",          "tier": 1, "x": 260, "y": 259, "w": 18, "h": 21 },
+    { "id": "KOR|C26",  "label": "South Korea – Electronics",   "tier": 1, "x": 260, "y": 285, "w": 18, "h": 18 },
+    { "id": "CZE|C29",  "label": "Czech Rep – Motor vehicles",  "tier": 1, "x": 260, "y": 308, "w": 18, "h": 16 },
+    { "id": "POL|C22",  "label": "Poland – Rubber & plastics",  "tier": 1, "x": 260, "y": 329, "w": 18, "h": 14 },
+    { "id": "ROW|other","label": "Rest of world – Other",       "tier": 1, "x": 260, "y": 348, "w": 18, "h": 74 }
+  ],
+  "links": [
+    { "source": "DEU|C29", "target": "CHN|C24",  "value": 12.8 },
+    { "source": "DEU|C29", "target": "DEU|C24",  "value": 8.5 },
+    { "source": "DEU|C29", "target": "RUS|B",    "value": 6.2 },
+    { "source": "DEU|C29", "target": "CHN|C20",  "value": 5.9 },
+    { "source": "DEU|C29", "target": "DEU|D35",  "value": 5.4 },
+    { "source": "DEU|C29", "target": "JPN|C29",  "value": 4.8 },
+    { "source": "DEU|C29", "target": "USA|C24",  "value": 4.1 },
+    { "source": "DEU|C29", "target": "KOR|C26",  "value": 3.6 },
+    { "source": "DEU|C29", "target": "CZE|C29",  "value": 3.2 },
+    { "source": "DEU|C29", "target": "POL|C22",  "value": 2.8 },
+    { "source": "DEU|C29", "target": "ROW|other", "value": 14.8 }
+  ],
+  "meta": { "unit": "MtCO2e", "topK": 25, "minShare": 0.005 }
+}

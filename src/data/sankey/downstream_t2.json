@@ -1,0 +1,63 @@
+{
+  "direction": "downstream",
+  "root": { "id": "DEU|C29", "label": "Germany – Motor vehicles" },
+  "tier": 2,
+  "nodes": [
+    { "id": "DEU|C29", "label": "Germany – Motor vehicles",           "tier": 0, "x": 40,  "y": 176, "w": 18, "h": 80 },
+
+    { "id": "DEU|G45", "label": "Germany – Wholesale motor vehicles",  "tier": 1, "x": 260, "y": 10,  "w": 18, "h": 44 },
+    { "id": "USA|FD",  "label": "USA – Final demand",                  "tier": 1, "x": 260, "y": 73,  "w": 18, "h": 32 },
+    { "id": "DEU|FD",  "label": "Germany – Final demand",              "tier": 1, "x": 260, "y": 124, "w": 18, "h": 28 },
+    { "id": "GBR|G45", "label": "UK – Wholesale motor vehicles",       "tier": 1, "x": 260, "y": 171, "w": 18, "h": 24 },
+    { "id": "CHN|C29", "label": "China – Motor vehicles",              "tier": 1, "x": 260, "y": 214, "w": 18, "h": 20 },
+    { "id": "FRA|G45", "label": "France – Wholesale motor vehicles",   "tier": 1, "x": 260, "y": 253, "w": 18, "h": 16 },
+    { "id": "DEU|H49", "label": "Germany – Land transport",            "tier": 1, "x": 260, "y": 288, "w": 18, "h": 16 },
+    { "id": "ITA|G45", "label": "Italy – Wholesale motor vehicles",    "tier": 1, "x": 260, "y": 323, "w": 18, "h": 12 },
+    { "id": "JPN|FD",  "label": "Japan – Final demand",                "tier": 1, "x": 260, "y": 354, "w": 18, "h": 12 },
+    { "id": "ROW|FD",  "label": "Rest of world – Final demand",        "tier": 1, "x": 260, "y": 385, "w": 18, "h": 36 },
+
+    { "id": "AUT|FD",  "label": "Austria – Final demand",              "tier": 2, "x": 480, "y": 4,   "w": 18, "h": 12 },
+    { "id": "CHE|FD",  "label": "Switzerland – Final demand",          "tier": 2, "x": 480, "y": 20,  "w": 18, "h": 8  },
+    { "id": "POL|FD",  "label": "Poland – Final demand",               "tier": 2, "x": 480, "y": 32,  "w": 18, "h": 8  },
+    { "id": "DEU|N77", "label": "Germany – Rental & leasing",          "tier": 2, "x": 480, "y": 44,  "w": 18, "h": 16 },
+    { "id": "GBR|FD",  "label": "UK – Final demand",                   "tier": 2, "x": 480, "y": 169, "w": 18, "h": 16 },
+    { "id": "IRL|FD",  "label": "Ireland – Final demand",              "tier": 2, "x": 480, "y": 189, "w": 18, "h": 8  },
+    { "id": "CHN|FD",  "label": "China – Final demand",                "tier": 2, "x": 480, "y": 212, "w": 18, "h": 12 },
+    { "id": "CHN|G45", "label": "China – Wholesale motor vehicles",    "tier": 2, "x": 480, "y": 228, "w": 18, "h": 8  },
+    { "id": "FRA|FD",  "label": "France – Final demand",               "tier": 2, "x": 480, "y": 253, "w": 18, "h": 16 },
+    { "id": "DEU|G46", "label": "Germany – Wholesale trade",           "tier": 2, "x": 480, "y": 286, "w": 18, "h": 8  },
+    { "id": "DEU|C10", "label": "Germany – Food products",             "tier": 2, "x": 480, "y": 298, "w": 18, "h": 8  },
+    { "id": "ITA|FD",  "label": "Italy – Final demand",                "tier": 2, "x": 480, "y": 323, "w": 18, "h": 12 }
+  ],
+  "links": [
+    { "source": "DEU|C29", "target": "DEU|G45", "value": 5.2 },
+    { "source": "DEU|C29", "target": "USA|FD",  "value": 3.8 },
+    { "source": "DEU|C29", "target": "DEU|FD",  "value": 3.4 },
+    { "source": "DEU|C29", "target": "GBR|G45", "value": 2.6 },
+    { "source": "DEU|C29", "target": "CHN|C29", "value": 2.3 },
+    { "source": "DEU|C29", "target": "FRA|G45", "value": 1.9 },
+    { "source": "DEU|C29", "target": "DEU|H49", "value": 1.6 },
+    { "source": "DEU|C29", "target": "ITA|G45", "value": 1.4 },
+    { "source": "DEU|C29", "target": "JPN|FD",  "value": 1.2 },
+    { "source": "DEU|C29", "target": "ROW|FD",  "value": 4.3 },
+
+    { "source": "DEU|G45", "target": "AUT|FD",  "value": 1.2 },
+    { "source": "DEU|G45", "target": "CHE|FD",  "value": 0.9 },
+    { "source": "DEU|G45", "target": "POL|FD",  "value": 1.1 },
+    { "source": "DEU|G45", "target": "DEU|N77", "value": 2.0 },
+
+    { "source": "GBR|G45", "target": "GBR|FD",  "value": 2.0 },
+    { "source": "GBR|G45", "target": "IRL|FD",  "value": 0.6 },
+
+    { "source": "CHN|C29", "target": "CHN|FD",  "value": 1.2 },
+    { "source": "CHN|C29", "target": "CHN|G45", "value": 1.1 },
+
+    { "source": "FRA|G45", "target": "FRA|FD",  "value": 1.9 },
+
+    { "source": "DEU|H49", "target": "DEU|G46", "value": 0.9 },
+    { "source": "DEU|H49", "target": "DEU|C10", "value": 0.7 },
+
+    { "source": "ITA|G45", "target": "ITA|FD",  "value": 1.4 }
+  ],
+  "meta": { "unit": "MtCO2e", "topK": 25, "minShare": 0.005 }
+}

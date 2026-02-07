@@ -1,0 +1,256 @@
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-bg: #0f1117;
+  --color-surface: #1a1d27;
+  --color-text: #e8e8ed;
+  --color-text-muted: #8b8d98;
+  --color-accent: #646cff;
+  --color-upstream: #e45756;
+  --color-domestic-va: #4c78a8;
+  --color-own-direct: #f58518;
+  --color-downstream: #72b7b2;
+  --color-bar: #4c78a8;
+  --color-bar-dim: rgba(76, 120, 168, 0.2);
+  --viz-width: 60%;
+  --text-width: 40%;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  scroll-behavior: auto;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-width: 900px;
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* ── Story layout ── */
+#story {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+/* ── Scroll steps (left column) ── */
+#scroll-steps {
+  width: var(--text-width);
+  position: relative;
+  z-index: 2;
+  padding: 0 2rem;
+}
+
+.step {
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.step:first-child {
+  padding-top: 20vh;
+}
+
+.step:last-child {
+  padding-bottom: 40vh;
+}
+
+.step-long {
+  min-height: 200vh;
+}
+
+.step-content {
+  max-width: 380px;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  background: rgba(26, 29, 39, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.step.is-active .step-content {
+  opacity: 1;
+  transform: none;
+}
+
+.step:not(.is-active) .step-content {
+  opacity: 0.25;
+  transform: translateY(8px);
+}
+
+.step-content h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.step-content p {
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.6rem;
+  line-height: 1.55;
+}
+
+.step-content p strong {
+  color: var(--color-text);
+}
+
+.step-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.step-content ul li {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.4rem;
+  padding-left: 0.8rem;
+  position: relative;
+}
+
+.step-content ul li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.explore-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.explore-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Sticky viz (right column) ── */
+#sticky-viz {
+  width: var(--viz-width);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+#viz {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(15, 17, 23, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text);
+  max-width: 240px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+  backdrop-filter: blur(6px);
+}
+
+.tooltip.visible {
+  opacity: 1;
+}
+
+.tooltip .tt-label {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tooltip .tt-value {
+  color: var(--color-text-muted);
+}
+
+/* ── SVG styles ── */
+.bar-rect {
+  cursor: default;
+}
+
+.axis text {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+  font-family: var(--font-sans);
+}
+
+.axis line,
+.axis path {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.annotation-text {
+  fill: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+.sankey-link {
+  fill: none;
+  stroke-opacity: 0.3;
+  transition: stroke-opacity 0.2s ease;
+}
+
+.sankey-link:hover {
+  stroke-opacity: 0.6;
+}
+
+.sankey-node rect {
+  cursor: default;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 0.5;
+}
+
+.sankey-node text {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  font-family: var(--font-sans);
+}
+
+.sankey-node:hover rect {
+  stroke: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Responsive (narrower) ── */
+@media (max-width: 1100px) {
+  :root {
+    --viz-width: 55%;
+    --text-width: 45%;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Stack for mobile — degrade gracefully */
+  #story { flex-direction: column; }
+  #scroll-steps { width: 100%; }
+  #sticky-viz { width: 100%; height: 60vh; }
+}

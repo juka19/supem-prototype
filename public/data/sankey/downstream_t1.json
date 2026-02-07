@@ -1,0 +1,32 @@
+{
+  "direction": "downstream",
+  "root": { "id": "DEU|C29", "label": "Germany – Motor vehicles" },
+  "tier": 1,
+  "nodes": [
+    { "id": "DEU|C29", "label": "Germany – Motor vehicles",           "tier": 0, "x": 40,  "y": 176, "w": 18, "h": 80 },
+
+    { "id": "DEU|G45", "label": "Germany – Wholesale motor vehicles",  "tier": 1, "x": 260, "y": 10,  "w": 18, "h": 44 },
+    { "id": "USA|FD",  "label": "USA – Final demand",                  "tier": 1, "x": 260, "y": 73,  "w": 18, "h": 32 },
+    { "id": "DEU|FD",  "label": "Germany – Final demand",              "tier": 1, "x": 260, "y": 124, "w": 18, "h": 28 },
+    { "id": "GBR|G45", "label": "UK – Wholesale motor vehicles",       "tier": 1, "x": 260, "y": 171, "w": 18, "h": 24 },
+    { "id": "CHN|C29", "label": "China – Motor vehicles",              "tier": 1, "x": 260, "y": 214, "w": 18, "h": 20 },
+    { "id": "FRA|G45", "label": "France – Wholesale motor vehicles",   "tier": 1, "x": 260, "y": 253, "w": 18, "h": 16 },
+    { "id": "DEU|H49", "label": "Germany – Land transport",            "tier": 1, "x": 260, "y": 288, "w": 18, "h": 16 },
+    { "id": "ITA|G45", "label": "Italy – Wholesale motor vehicles",    "tier": 1, "x": 260, "y": 323, "w": 18, "h": 12 },
+    { "id": "JPN|FD",  "label": "Japan – Final demand",                "tier": 1, "x": 260, "y": 354, "w": 18, "h": 12 },
+    { "id": "ROW|FD",  "label": "Rest of world – Final demand",        "tier": 1, "x": 260, "y": 385, "w": 18, "h": 36 }
+  ],
+  "links": [
+    { "source": "DEU|C29", "target": "DEU|G45", "value": 5.2 },
+    { "source": "DEU|C29", "target": "USA|FD",  "value": 3.8 },
+    { "source": "DEU|C29", "target": "DEU|FD",  "value": 3.4 },
+    { "source": "DEU|C29", "target": "GBR|G45", "value": 2.6 },
+    { "source": "DEU|C29", "target": "CHN|C29", "value": 2.3 },
+    { "source": "DEU|C29", "target": "FRA|G45", "value": 1.9 },
+    { "source": "DEU|C29", "target": "DEU|H49", "value": 1.6 },
+    { "source": "DEU|C29", "target": "ITA|G45", "value": 1.4 },
+    { "source": "DEU|C29", "target": "JPN|FD",  "value": 1.2 },
+    { "source": "DEU|C29", "target": "ROW|FD",  "value": 4.3 }
+  ],
+  "meta": { "unit": "MtCO2e", "topK": 25, "minShare": 0.005 }
+}
