@@ -1,6 +1,6 @@
 # Prototype for embodied emissions dashboard
 
-Scroll-driven D3 story showing an emissions trend, component split, and tiered Sankey flows for a single country–sector pair. Currently using stub data (no actual data) for ICIO derived values.
+Scroll-driven D3 story showing an emissions trend, component split, and tiered Sankey flows for a single country–sector pair. 
 
 Deployed with cloudflare pages [here](https://supem-prototype.pages.dev/).
 
@@ -11,6 +11,7 @@ Deployed with cloudflare pages [here](https://supem-prototype.pages.dev/).
 - Preview: `npm run preview`
 
 ## Data
+Currently using stub data (no actual data) for ICIO derived values.
 Static JSON files are served from `public/data`. The app loads them in `src/main.js`.
 
 ## Structure
