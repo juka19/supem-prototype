@@ -2,6 +2,8 @@ import './style.css';
 import * as d3 from 'd3';
 import scrollama from 'scrollama';
 import { createSceneController } from './lib/sceneController.js';
+import { createMorphController } from './lib/morphController.js';
+import { COMPONENT_COLORS, TIER_COLORS } from './lib/colors.js';
 import { createTrendBarLayer } from './layers/TrendBarLayer.js';
 import { createSplitBarLayer } from './layers/SplitBarLayer.js';
 import { createSankeyLayer } from './layers/SankeyLayer.js';
@@ -47,6 +49,7 @@ async function main() {
   const trendLayer = createTrendBarLayer(svg, { margin, width: W, height: H });
   const splitLayer = createSplitBarLayer(svg, { margin, width: W, height: H });
   const sankeyLayer = createSankeyLayer(svg, { margin, width: W, height: H, tooltip });
+  const morphCtrl = createMorphController(svg, { margin });
 
   // ── Initialize data ──
   trendLayer.init(data.trend);
@@ -66,6 +69,61 @@ async function main() {
     maxTierDownstream: 3,
   });
 
+  // ── Morph transition handlers ──
+
+  function renderMorphA(state, dur) {
+    const barBounds = trendLayer.getBarBounds(state.focusYear);
+    const targetSegs = splitLayer.getAllSegmentBounds();
+    if (!barBounds || !targetSegs) return false;
+
+    morphCtrl.morphTrendToSplit({
+      sourceBounds: barBounds,
+      segments: data.split.components,
+      targetSegments: targetSegs,
+      dur,
+      onStart: () => {
+        trendLayer.hideBar(state.focusYear);
+        trendLayer.g.transition().duration(dur * 0.5).attr('opacity', 0);
+      },
+      onComplete: () => {
+        splitLayer.g.attr('opacity', 1);
+        splitLayer.update(state, dur * 0.5);
+        trendLayer.g.attr('opacity', 0);
+      },
+    });
+    return true;
+  }
+
+  function renderMorphB(state, direction, dur) {
+    const segKey = direction;
+    const segBounds = splitLayer.getSegmentBounds(segKey);
+    const rootBounds = sankeyLayer.getRootBounds(direction);
+    if (!segBounds || !rootBounds) return false;
+
+    morphCtrl.morphSegmentToSankeyRoot({
+      segmentBounds: segBounds,
+      segmentColor: COMPONENT_COLORS[segKey],
+      rootBounds: rootBounds,
+      rootColor: TIER_COLORS[0],
+      dur,
+      onStart: () => {
+        splitLayer.hideSegment(segKey);
+        splitLayer.g.selectAll('.split-rect')
+          .filter(d => d.key !== segKey)
+          .transition().duration(dur * 0.4).attr('opacity', 0);
+        splitLayer.g.selectAll('.split-label-g')
+          .transition().duration(dur * 0.3).attr('opacity', 0);
+      },
+      onComplete: () => {
+        splitLayer.g.attr('opacity', 0);
+        sankeyLayer.g.attr('opacity', 1);
+        sankeyLayer.update(state, dur, { rootPreVisible: true });
+        sankeyLayer.updateOverlay(state, dur);
+      },
+    });
+    return true;
+  }
+
   // ── Render function ──
   let prevMode = null;
 
@@ -74,7 +132,28 @@ async function main() {
     const modeChanged = mode !== prevMode;
     prevMode = mode;
 
-    // Determine which layers are visible
+    // Cancel any in-progress morph on new render
+    if (morphCtrl.isActive()) {
+      morphCtrl.cancel();
+    }
+
+    // ── Detect morph transitions (forward only) ──
+    const prev = state.prevMode;
+    const isMorphA = prev === 'trend_zoom_last' && mode === 'splitBar';
+    const isMorphB_up = prev === 'splitBar_upstreamFocus' && mode === 'sankey_upstream';
+    const isMorphB_dn = prev === 'splitBar_downstreamFocus' && mode === 'sankey_downstream';
+
+    if (isMorphA) {
+      if (renderMorphA(state, dur)) return;
+    }
+    if (isMorphB_up) {
+      if (renderMorphB(state, 'upstream', dur)) return;
+    }
+    if (isMorphB_dn) {
+      if (renderMorphB(state, 'downstream', dur)) return;
+    }
+
+    // ── Default: crossfade ──
     const showTrend = mode.startsWith('trend');
     const showSplit = mode.startsWith('splitBar');
     const showSankey = mode.startsWith('sankey');

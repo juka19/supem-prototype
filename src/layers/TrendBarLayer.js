@@ -133,5 +133,23 @@ export function createTrendBarLayer(svg, { margin, width, height }) {
     else hide(dur);
   }
 
-  return { init, update, show, hide, setVisible, g, xScale, yScale, innerW, innerH };
+  function getBarBounds(year) {
+    if (!currentData) return null;
+    const d = currentData.series.find(s => s.year === year);
+    if (!d) return null;
+    return {
+      x: xScale(d.year),
+      y: yScale(d.value),
+      width: xScale.bandwidth(),
+      height: innerH - yScale(d.value),
+    };
+  }
+
+  function hideBar(year) {
+    barsG.selectAll('.bar-rect')
+      .filter(d => d.year === year)
+      .attr('opacity', 0);
+  }
+
+  return { init, update, show, hide, setVisible, getBarBounds, hideBar, g, xScale, yScale, innerW, innerH };
 }

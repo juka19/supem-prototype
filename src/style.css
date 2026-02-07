@@ -240,6 +240,10 @@ body {
   stroke: rgba(255, 255, 255, 0.5);
 }
 
+.morph-layer {
+  pointer-events: none;
+}
+
 /* ── Responsive (narrower) ── */
 @media (max-width: 1100px) {
   :root {

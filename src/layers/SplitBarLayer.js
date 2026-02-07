@@ -162,5 +162,30 @@ export function createSplitBarLayer(svg, { margin, width, height }) {
     return null;
   }
 
-  return { init, update, show, hide, setVisible, getSegmentBounds, g };
+  function getAllSegmentBounds() {
+    if (!splitData) return {};
+    const result = {};
+    const components = splitData.components;
+    let cumY = 0;
+    for (const c of components) {
+      const y0 = cumY;
+      const y1 = cumY + c.value;
+      result[c.key] = {
+        x: barX,
+        y: yScale(y1),
+        width: barW,
+        height: yScale(y0) - yScale(y1),
+      };
+      cumY += c.value;
+    }
+    return result;
+  }
+
+  function hideSegment(key) {
+    barsG.selectAll('.split-rect')
+      .filter(d => d.key === key)
+      .attr('opacity', 0);
+  }
+
+  return { init, update, show, hide, setVisible, getSegmentBounds, getAllSegmentBounds, hideSegment, g };
 }

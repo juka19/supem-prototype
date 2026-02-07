@@ -28,7 +28,45 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     tieredData[direction][tier] = data;
   }
 
-  function update(state, dur = 700) {
+  function getRootBounds(direction) {
+    const isUp = direction === 'upstream';
+    const tierKeys = Object.keys(tieredData[direction] || {}).map(Number);
+    if (tierKeys.length === 0) return null;
+    const maxTier = Math.max(...tierKeys);
+    const data = tieredData[direction][maxTier];
+    if (!data) return null;
+
+    const rootNode = data.nodes.find(n => n.tier === 0);
+    if (!rootNode) return null;
+
+    const dMaxX = d3.max(data.nodes, n => n.x + n.w) || 1;
+    const dMaxY = d3.max(data.nodes, n => n.y + n.h) || 1;
+    const gW = innerW * 0.65;
+    const sX = gW / dMaxX;
+    const sY = (innerH * 0.88) / dMaxY;
+    const sc = Math.min(sX, sY);
+
+    const pY = (innerH - dMaxY * sc) / 2;
+    const gpW = dMaxX * sc;
+    const pXd = 10;
+    const pXu = innerW - gpW - 10;
+
+    const pxFn = isUp
+      ? v => pXu + (dMaxX - v) * sc
+      : v => pXd + v * sc;
+
+    const rx = isUp ? pxFn(rootNode.x) - rootNode.w * sc : pxFn(rootNode.x);
+
+    return {
+      x: rx,
+      y: rootNode.y * sc + pY,
+      width: rootNode.w * sc,
+      height: Math.max(rootNode.h * sc, 3),
+    };
+  }
+
+  function update(state, dur = 700, enterOptions = {}) {
+    const { rootPreVisible = false } = enterOptions;
     const dir = state.sankeyDirection;
 
     // Clear old elements when switching directions to avoid visual artifacts
@@ -45,11 +83,10 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const tierAlpha = state.tierAlpha || 0;
     const maxTierAvailable = Math.max(...Object.keys(tieredData[dir]).map(Number));
 
-    // Pick the dataset that contains all needed tiers
-    const dataKey = Math.min(
-      Math.max(visibleTier + (tierAlpha > 0 ? 1 : 0), 1),
-      maxTierAvailable
-    );
+    // Always use the max-tier dataset so coordinate scaling stays stable
+    // as tiers unfold (each dataset has different extents which would cause
+    // the graph to resize if we switched between them).
+    const dataKey = maxTierAvailable;
     const data = tieredData[dir][dataKey];
     if (!data) return;
 
@@ -81,7 +118,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       : v => padXdown + v * scale;
 
     const t = d3.transition().duration(dur);
-    const tLinks = d3.transition().duration(dur).delay(dur * 0.45);
+    const isScrollDriven = dur <= 150;
 
     // ── Build node map and scaled node data ──
     const nodeMap = new Map();
@@ -185,34 +222,134 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       return 0;
     }
 
-    // ── Render links ──
+    // How much of the edge path should be drawn (0 = hidden, 1 = full)
+    function linkDrawFraction(l) {
+      if (l.maxTier <= visibleTier) return 1;
+      if (l.maxTier === visibleTier + 1 && tierAlpha > 0) return tierAlpha;
+      return 0;
+    }
+
+    // ── Render links with edge-flow animation ──
     linksG.selectAll('.sankey-link')
       .data(linkData, d => d.key)
       .join(
-        enter => enter.append('path')
-          .attr('class', 'sankey-link')
-          .attr('d', d => d.path)
-          .attr('stroke', d => TIER_COLORS[d.srcTier] || '#666')
-          .attr('stroke-width', d => d.strokeW)
-          .attr('stroke-opacity', 0)
-          .call(el => el.transition(tLinks).attr('stroke-opacity', d => linkStrokeOpacity(d))),
-        update => update.call(el => el.transition(tLinks)
-          .attr('d', d => d.path)
-          .attr('stroke', d => TIER_COLORS[d.srcTier] || '#666')
-          .attr('stroke-width', d => d.strokeW)
-          .attr('stroke-opacity', d => linkStrokeOpacity(d))
-        ),
-        exit => exit.transition(tLinks).attr('stroke-opacity', 0).remove()
+        enter => {
+          const paths = enter.append('path')
+            .attr('class', 'sankey-link')
+            .attr('d', d => d.path)
+            .attr('stroke', d => TIER_COLORS[d.srcTier] || '#666')
+            .attr('stroke-width', d => d.strokeW)
+            .attr('stroke-opacity', d => linkStrokeOpacity(d))
+            .attr('fill', 'none');
+
+          paths.each(function(d) {
+            const totalLength = this.getTotalLength();
+            const frac = linkDrawFraction(d);
+
+            if (frac <= 0) {
+              d3.select(this)
+                .attr('stroke-dasharray', totalLength)
+                .attr('stroke-dashoffset', totalLength);
+            } else if (frac < 1 || isScrollDriven) {
+              d3.select(this)
+                .attr('stroke-dasharray', totalLength)
+                .attr('stroke-dashoffset', totalLength * (1 - frac));
+            } else {
+              // Fully visible, animate draw-on
+              d3.select(this)
+                .attr('stroke-dasharray', totalLength)
+                .attr('stroke-dashoffset', totalLength)
+                .transition()
+                .duration(dur * 0.6)
+                .ease(d3.easeLinear)
+                .attr('stroke-dashoffset', 0)
+                .on('end', function() {
+                  d3.select(this)
+                    .attr('stroke-dasharray', null)
+                    .attr('stroke-dashoffset', null);
+                });
+            }
+          });
+
+          return paths;
+        },
+        update => {
+          update.each(function(d) {
+            const el = d3.select(this);
+            const totalLength = this.getTotalLength();
+
+            if (isScrollDriven) {
+              const frac = linkDrawFraction(d);
+              el.attr('d', d.path)
+                .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                .attr('stroke-width', d.strokeW)
+                .attr('stroke-opacity', linkStrokeOpacity(d));
+              if (frac < 1) {
+                el.attr('stroke-dasharray', totalLength)
+                  .attr('stroke-dashoffset', totalLength * (1 - frac));
+              } else {
+                el.attr('stroke-dasharray', null)
+                  .attr('stroke-dashoffset', null);
+              }
+            } else {
+              const frac = linkDrawFraction(d);
+              if (frac >= 1) {
+                // Fully visible — finish any in-progress draw-on animation
+                const currentOffset = parseFloat(el.attr('stroke-dashoffset'));
+                if (currentOffset > 0) {
+                  // Draw-on still in progress, complete it
+                  el.transition(t)
+                    .attr('d', d.path)
+                    .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                    .attr('stroke-width', d.strokeW)
+                    .attr('stroke-opacity', linkStrokeOpacity(d))
+                    .attr('stroke-dashoffset', 0)
+                    .on('end', function() {
+                      d3.select(this)
+                        .attr('stroke-dasharray', null)
+                        .attr('stroke-dashoffset', null);
+                    });
+                } else {
+                  el.transition(t)
+                    .attr('d', d.path)
+                    .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                    .attr('stroke-width', d.strokeW)
+                    .attr('stroke-opacity', linkStrokeOpacity(d))
+                    .attr('stroke-dasharray', null)
+                    .attr('stroke-dashoffset', null);
+                }
+              } else if (frac > 0) {
+                el.transition(t)
+                  .attr('d', d.path)
+                  .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                  .attr('stroke-width', d.strokeW)
+                  .attr('stroke-opacity', linkStrokeOpacity(d))
+                  .attr('stroke-dashoffset', totalLength * (1 - frac));
+              } else {
+                el.transition(t)
+                  .attr('d', d.path)
+                  .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                  .attr('stroke-width', d.strokeW)
+                  .attr('stroke-opacity', 0);
+              }
+            }
+          });
+          return update;
+        },
+        exit => exit.transition().duration(dur * 0.3).attr('stroke-opacity', 0).remove()
       );
 
-    // ── Render nodes ──
+    // ── Render nodes (delayed after edges for step-enter) ──
     const nodeGroups = nodesG.selectAll('.sankey-node')
       .data(nodeData, d => d.id)
       .join(
         enter => {
           const ng = enter.append('g')
             .attr('class', 'sankey-node')
-            .attr('opacity', 0);
+            .attr('opacity', d => {
+              if (rootPreVisible && d.tier === 0) return 1;
+              return 0;
+            });
           ng.append('rect');
           const txt = ng.append('text');
           txt.append('tspan').attr('class', 'label-line1');
@@ -223,16 +360,54 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         exit => exit.transition(t).attr('opacity', 0).remove()
       );
 
-    nodeGroups.transition(t).attr('opacity', d => nodeOpacity(d));
+    // Animate node opacity: edges first, then nodes
+    nodeGroups.each(function(d) {
+      const el = d3.select(this);
+      const targetOp = nodeOpacity(d);
+      const currentOp = parseFloat(el.attr('opacity')) || 0;
 
-    nodeGroups.select('rect')
-      .transition(t)
-      .attr('x', d => d.rx)
-      .attr('y', d => d.ry)
-      .attr('width', d => d.rw)
-      .attr('height', d => d.rh)
-      .attr('fill', d => TIER_COLORS[d.tier] || '#666')
-      .attr('rx', 2);
+      if (isScrollDriven) {
+        // Scroll-driven: nodes appear in the last 40% of edge draw
+        let nodeAlpha;
+        if (d.tier <= visibleTier) {
+          nodeAlpha = 1;
+        } else if (d.tier === visibleTier + 1 && tierAlpha > 0) {
+          nodeAlpha = Math.max(0, (tierAlpha - 0.6) / 0.4);
+        } else {
+          nodeAlpha = 0;
+        }
+        el.attr('opacity', nodeAlpha);
+      } else if (d.tier > 0 && currentOp === 0 && targetOp > 0) {
+        // New node appearing via step-enter: delay until after edges draw
+        el.transition()
+          .delay(dur * 0.55)
+          .duration(dur * 0.35)
+          .attr('opacity', targetOp);
+      } else {
+        el.transition(t).attr('opacity', targetOp);
+      }
+    });
+
+    // Position rects — set root immediately when rootPreVisible for seamless morph handoff
+    nodeGroups.select('rect').each(function(d) {
+      const rect = d3.select(this);
+      if (rootPreVisible && d.tier === 0) {
+        rect.attr('x', d.rx)
+          .attr('y', d.ry)
+          .attr('width', d.rw)
+          .attr('height', d.rh)
+          .attr('fill', TIER_COLORS[d.tier] || '#666')
+          .attr('rx', 2);
+      } else {
+        rect.transition(t)
+          .attr('x', d.rx)
+          .attr('y', d.ry)
+          .attr('width', d.rw)
+          .attr('height', d.rh)
+          .attr('fill', TIER_COLORS[d.tier] || '#666')
+          .attr('rx', 2);
+      }
+    });
 
     // ── Labels: root + top 5 per visible tier ──
     const topPerTier = 5;
@@ -362,5 +537,5 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     else hide(dur);
   }
 
-  return { loadTierData, update, updateOverlay, show, hide, setVisible, g };
+  return { loadTierData, update, updateOverlay, show, hide, setVisible, getRootBounds, g };
 }

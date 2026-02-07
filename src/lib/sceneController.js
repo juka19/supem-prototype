@@ -21,6 +21,7 @@ const MODES = {
 export function createSceneController({ focusYear = 2019, maxTierUpstream = 3, maxTierDownstream = 3 } = {}) {
   const state = {
     mode: 'trend',
+    prevMode: null,
     focusYear,
     highlightYear: null,
     sankeyDirection: null,
@@ -32,6 +33,7 @@ export function createSceneController({ focusYear = 2019, maxTierUpstream = 3, m
   };
 
   function onStepEnter(stepIndex) {
+    state.prevMode = state.mode;
     state.step = stepIndex;
     state.mode = MODES[stepIndex] || 'trend';
     state.progress = 0;
