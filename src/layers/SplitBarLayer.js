@@ -52,8 +52,8 @@ export function createSplitBarLayer(svg, { margin, width, height }) {
 
     // Focus key determines which segment is highlighted
     let focusKey = null;
-    if (state.mode === 'splitBar_upstreamFocus') focusKey = 'upstream';
-    if (state.mode === 'splitBar_downstreamFocus') focusKey = 'downstream';
+    if (state.mode === 'splitBar_upstreamFocus') focusKey = 'S3U';
+    if (state.mode === 'splitBar_downstreamFocus') focusKey = 'S3D';
 
     // Bars
     barsG.selectAll('.split-rect')

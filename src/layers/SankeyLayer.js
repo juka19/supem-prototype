@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { TIER_COLORS, COLORS } from '../lib/colors.js';
+import { COLORS, getNodeColor } from '../lib/colors.js';
 import { formatValue } from '../lib/format.js';
 
 /**
@@ -7,6 +7,7 @@ import { formatValue } from '../lib/format.js';
  * Upstream flows right-to-left (root on right, suppliers expand left).
  * Downstream flows left-to-right (root on left, buyers expand right).
  * Supports progressive tier unfolding driven by scroll progress.
+ * Nodes are draggable vertically, with link paths following.
  */
 export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
   const g = svg.append('g')
@@ -23,6 +24,13 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
 
   let tieredData = { upstream: {}, downstream: {} };
   let lastDirection = null;
+
+  // Shared state for drag handler access
+  let activeNodeMap = null;
+  let activeData = null;
+  let activeIsUpstream = false;
+  let activeOutgoingSums = null;
+  let activeValueToPixel = 1;
 
   function loadTierData(direction, tier, data) {
     tieredData[direction][tier] = data;
@@ -63,6 +71,74 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       width: rootNode.w * sc,
       height: Math.max(rootNode.h * sc, 3),
     };
+  }
+
+  // ── Rebuild link paths using current node positions (for drag) ──
+  function rebuildLinkPaths() {
+    if (!activeNodeMap || !activeData) return;
+
+    const isUpstream = activeIsUpstream;
+
+    // Recalculate offsets from scratch
+    const srcOffsets = new Map();
+    const tgtOffsets = new Map();
+    activeData.nodes.forEach(n => {
+      srcOffsets.set(n.id, 0);
+      tgtOffsets.set(n.id, 0);
+    });
+
+    // Re-sort links by target ry
+    const sortedLinks = [...activeData.links].sort((a, b) => {
+      const ta = activeNodeMap.get(a.target), tb = activeNodeMap.get(b.target);
+      if (!ta || !tb) return 0;
+      return ta.ry - tb.ry;
+    });
+
+    // Rebuild paths
+    const pathUpdates = new Map();
+    sortedLinks.forEach(link => {
+      const src = activeNodeMap.get(link.source);
+      const tgt = activeNodeMap.get(link.target);
+      if (!src || !tgt) return;
+
+      const strokeW = Math.max(link.value * activeValueToPixel, 1.5);
+
+      const sOff = srcOffsets.get(link.source) || 0;
+      const tOff = tgtOffsets.get(link.target) || 0;
+
+      const y0 = src.ry + sOff + strokeW / 2;
+      const y1 = tgt.ry + tOff + strokeW / 2;
+
+      srcOffsets.set(link.source, sOff + strokeW);
+      tgtOffsets.set(link.target, tOff + strokeW);
+
+      let x0, x1;
+      if (isUpstream) {
+        x0 = src.rx;
+        x1 = tgt.rx + tgt.rw;
+      } else {
+        x0 = src.rx + src.rw;
+        x1 = tgt.rx;
+      }
+      const mx1 = x0 + (x1 - x0) * 0.4;
+      const mx2 = x0 + (x1 - x0) * 0.6;
+      const path = `M${x0},${y0} C${mx1},${y0} ${mx2},${y1} ${x1},${y1}`;
+
+      const key = `${link.source}|${link.target}`;
+      pathUpdates.set(key, { path, strokeW });
+    });
+
+    // Update DOM
+    linksG.selectAll('.sankey-link').each(function(d) {
+      const upd = pathUpdates.get(d.key);
+      if (upd) {
+        d.path = upd.path;
+        d.strokeW = upd.strokeW;
+        d3.select(this)
+          .attr('d', upd.path)
+          .attr('stroke-width', upd.strokeW);
+      }
+    });
   }
 
   function update(state, dur = 700, enterOptions = {}) {
@@ -130,6 +206,8 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         id: n.id,
         label: n.label,
         tier: n.tier,
+        group: n.group || 'foreign',
+        value: n.value || 0,
         rx,
         ry: py(n.y),
         rw: ps(n.w),
@@ -140,11 +218,26 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       return nd;
     });
 
+    // ── Store state for drag handler ──
+    activeNodeMap = nodeMap;
+    activeData = data;
+    activeIsUpstream = isUpstream;
+
+    // ── Compute global value-to-pixel scale for consistent link widths ──
+    let _bestRef = null;
+    for (const n of nodeData) {
+      if (n.tier > 0 && n.value > 0 && (!_bestRef || n.value > _bestRef.value)) {
+        _bestRef = n;
+      }
+    }
+    activeValueToPixel = _bestRef && _bestRef.value > 0 ? _bestRef.rh / _bestRef.value : 1;
+
     // ── Compute link stroke widths proportional to value ──
     const outgoingSums = new Map();
     data.links.forEach(l => {
       outgoingSums.set(l.source, (outgoingSums.get(l.source) || 0) + l.value);
     });
+    activeOutgoingSums = outgoingSums;
 
     // Sort links for consistent Y-offset stacking
     const sortedLinks = [...data.links].sort((a, b) => {
@@ -166,8 +259,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       const tgt = nodeMap.get(link.target);
       if (!src || !tgt) return null;
 
-      const srcTotal = outgoingSums.get(link.source) || 1;
-      const strokeW = Math.max((link.value / srcTotal) * src.rh, 1.5);
+      const strokeW = Math.max(link.value * activeValueToPixel, 1.5);
 
       const sOff = srcOffsets.get(link.source);
       const tOff = tgtOffsets.get(link.target);
@@ -205,8 +297,14 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         strokeW,
         maxTier: maxT,
         srcTier: src.tier,
+        srcGroup: src.group,
       };
     }).filter(Boolean);
+
+    // ── Color helper for links ──
+    function linkColor(d) {
+      return getNodeColor(d.srcGroup, d.srcTier);
+    }
 
     // ── Visibility functions ──
     function nodeOpacity(n) {
@@ -236,7 +334,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
           const paths = enter.append('path')
             .attr('class', 'sankey-link')
             .attr('d', d => d.path)
-            .attr('stroke', d => TIER_COLORS[d.srcTier] || '#666')
+            .attr('stroke', d => linkColor(d))
             .attr('stroke-width', d => d.strokeW)
             .attr('stroke-opacity', d => linkStrokeOpacity(d))
             .attr('fill', 'none');
@@ -280,7 +378,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
             if (isScrollDriven) {
               const frac = linkDrawFraction(d);
               el.attr('d', d.path)
-                .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                .attr('stroke', linkColor(d))
                 .attr('stroke-width', d.strokeW)
                 .attr('stroke-opacity', linkStrokeOpacity(d));
               if (frac < 1) {
@@ -299,7 +397,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
                   // Draw-on still in progress, complete it
                   el.transition(t)
                     .attr('d', d.path)
-                    .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                    .attr('stroke', linkColor(d))
                     .attr('stroke-width', d.strokeW)
                     .attr('stroke-opacity', linkStrokeOpacity(d))
                     .attr('stroke-dashoffset', 0)
@@ -311,7 +409,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
                 } else {
                   el.transition(t)
                     .attr('d', d.path)
-                    .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                    .attr('stroke', linkColor(d))
                     .attr('stroke-width', d.strokeW)
                     .attr('stroke-opacity', linkStrokeOpacity(d))
                     .attr('stroke-dasharray', null)
@@ -320,14 +418,14 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
               } else if (frac > 0) {
                 el.transition(t)
                   .attr('d', d.path)
-                  .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                  .attr('stroke', linkColor(d))
                   .attr('stroke-width', d.strokeW)
                   .attr('stroke-opacity', linkStrokeOpacity(d))
                   .attr('stroke-dashoffset', totalLength * (1 - frac));
               } else {
                 el.transition(t)
                   .attr('d', d.path)
-                  .attr('stroke', TIER_COLORS[d.srcTier] || '#666')
+                  .attr('stroke', linkColor(d))
                   .attr('stroke-width', d.strokeW)
                   .attr('stroke-opacity', 0);
               }
@@ -390,12 +488,13 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     // Position rects — set root immediately when rootPreVisible for seamless morph handoff
     nodeGroups.select('rect').each(function(d) {
       const rect = d3.select(this);
+      const fill = getNodeColor(d.group, d.tier);
       if (rootPreVisible && d.tier === 0) {
         rect.attr('x', d.rx)
           .attr('y', d.ry)
           .attr('width', d.rw)
           .attr('height', d.rh)
-          .attr('fill', TIER_COLORS[d.tier] || '#666')
+          .attr('fill', fill)
           .attr('rx', 2);
       } else {
         rect.transition(t)
@@ -403,7 +502,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
           .attr('y', d.ry)
           .attr('width', d.rw)
           .attr('height', d.rh)
-          .attr('fill', TIER_COLORS[d.tier] || '#666')
+          .attr('fill', fill)
           .attr('rx', 2);
       }
     });
@@ -475,9 +574,9 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         .attr('text-anchor', anchor)
         .attr('fill', show ? COLORS.text : 'transparent');
 
-      const parts = d.label.split(' – ');
+      const parts = d.label.split(' \u2013 ');
       const line1 = parts[0] || '';
-      const line2 = parts.slice(1).join(' – ') || '';
+      const line2 = parts.slice(1).join(' \u2013 ') || '';
 
       textEl.select('.label-line1')
         .attr('x', lx)
@@ -495,13 +594,45 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         .text(show ? line2 : '');
     });
 
+    // ── Drag behavior ──
+    const drag = d3.drag()
+      .on('start', function() {
+        d3.select(this).raise().classed('dragging', true);
+      })
+      .on('drag', function(event, d) {
+        // Clamp within chart bounds
+        d.ry = Math.max(0, Math.min(innerH - d.rh, event.y - d.rh / 2));
+
+        // Update node map
+        if (activeNodeMap) activeNodeMap.set(d.id, d);
+
+        // Move rect
+        d3.select(this).select('rect').attr('y', d.ry);
+
+        // Move label
+        const textEl = d3.select(this).select('text');
+        const ly = d.ry + d.rh / 2;
+        const parts = d.label.split(' \u2013 ');
+        const line2 = parts.length > 1;
+        textEl.select('.label-line1').attr('y', line2 ? ly - 1 : ly + 4);
+        textEl.select('.label-line2').attr('y', line2 ? ly + 9 : ly);
+
+        // Rebuild all link paths
+        rebuildLinkPaths();
+      })
+      .on('end', function() {
+        d3.select(this).classed('dragging', false);
+      });
+
+    nodeGroups.filter(d => d.tier > 0).call(drag);
+
     // ── Tooltips ──
     if (tooltip) {
       nodeGroups
         .on('mouseenter', (event, d) => {
           tooltip.show(event, `
             <div class="tt-label">${d.label}</div>
-            <div class="tt-value">Tier ${d.tier}</div>
+            <div class="tt-value">${formatValue(d.value || 0)} MtCO\u2082e \u2013 Tier ${d.tier}</div>
           `);
         })
         .on('mousemove', (event) => tooltip.move(event))
@@ -510,8 +641,8 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
       linksG.selectAll('.sankey-link')
         .on('mouseenter', (event, d) => {
           tooltip.show(event, `
-            <div class="tt-label">${d.srcLabel} → ${d.tgtLabel}</div>
-            <div class="tt-value">${formatValue(d.value)} MtCO₂e</div>
+            <div class="tt-label">${d.srcLabel} \u2192 ${d.tgtLabel}</div>
+            <div class="tt-value">${formatValue(d.value)} MtCO\u2082e</div>
           `);
         })
         .on('mousemove', (event) => tooltip.move(event))

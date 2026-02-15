@@ -1,0 +1,14 @@
+version: v1
+scopes:
+  - id: S1
+    label: "Scope 1 (Direct)"
+    order: 1
+  - id: S2
+    label: "Scope 2 (Electricity & heat)"
+    order: 2
+  - id: S3U
+    label: "Scope 3 Upstream"
+    order: 3
+  - id: S3D
+    label: "Scope 3 Downstream"
+    order: 4

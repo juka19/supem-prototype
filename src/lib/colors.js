@@ -19,10 +19,32 @@ export const TIER_COLORS = [
   '#34d399', // tier 3 — emerald
 ];
 
-// Component key → color mapping
+// Group-based node colors for sankey domestic/foreign distinction
+const GROUP_COLORS = {
+  root:     '#94a3b8',  // slate
+  domestic: '#6b7b8d',  // muted blue-gray
+  other:    '#4a5568',  // dark gray
+};
+
+/**
+ * Get node color based on group and tier.
+ * Foreign nodes use vivid tier colors; domestic/other are muted.
+ */
+export function getNodeColor(group, tier) {
+  if (GROUP_COLORS[group]) return GROUP_COLORS[group];
+  return TIER_COLORS[tier] || '#666';
+}
+
+// Component key → color mapping (scope-based keys from pipeline)
 export const COMPONENT_COLORS = {
-  upstream:    COLORS.upstream,
-  domestic_va: COLORS.domestic_va,
-  own_direct:  COLORS.own_direct,
-  downstream:  COLORS.downstream,
+  S1:  '#f58518',  // Scope 1 (Direct) — orange
+  S2:  '#4c78a8',  // Scope 2 (Electricity & heat) — blue
+  S3U: '#e45756',  // Scope 3 Upstream — red
+  S3D: '#72b7b2',  // Scope 3 Downstream — teal
+};
+
+// Map scope key to the sankey direction it morphs into
+export const SCOPE_TO_DIRECTION = {
+  S3U: 'upstream',
+  S3D: 'downstream',
 };

@@ -10,6 +10,14 @@
   </head>
   <body>
     <div id="app">
+      <div id="pair-selector">
+        <label for="country-select">Country</label>
+        <select id="country-select"></select>
+        <label for="sector-select">Sector</label>
+        <select id="sector-select"></select>
+        <span id="loading-indicator">Loading...</span>
+      </div>
+
       <section id="story">
         <div id="scroll-steps">
           <!-- Step 0: Cold open -->
@@ -24,30 +32,27 @@
           <!-- Step 1: Reveal highest pair -->
           <div class="step" data-step="1">
             <div class="step-content">
-              <h2>The Largest Footprint</h2>
-              <p><strong>Germany's motor vehicle industry</strong> has one of the largest total emission footprints of any country–industry pair.</p>
-              <p>At <strong>160.8 MtCO₂e</strong> in 2019, it ranks #1 across all pairs in the dataset.</p>
+              <h2>Total Emissions</h2>
+              <p><strong><span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> industry</strong> — total emission footprint across all scopes.</p>
+              <p>At <strong><span data-total-value>100.7</span> MtCO&#x2082;e</strong> in <span data-focus-year>2020</span>.</p>
             </div>
           </div>
 
           <!-- Step 2: Zoom to last year -->
           <div class="step" data-step="2">
             <div class="step-content">
-              <h2>Focus: 2019</h2>
-              <p>Let's zoom in on 2019 — the latest year — and examine what makes up those 160.8 megatonnes.</p>
+              <h2>Focus: <span data-focus-year>2020</span></h2>
+              <p>Let's zoom in on <span data-focus-year>2020</span> and examine what makes up those <span data-total-value>100.7</span> megatonnes.</p>
             </div>
           </div>
 
           <!-- Step 3: Split bar -->
           <div class="step" data-step="3">
             <div class="step-content">
-              <h2>Where Do These Emissions Come From?</h2>
-              <p>The total breaks down into four components:</p>
-              <ul>
-                <li><strong style="color:#e45756">Upstream</strong> — emissions embodied in inputs from suppliers (72.1 Mt)</li>
-                <li><strong style="color:#4c78a8">Domestic value-added</strong> — from activities within Germany (40.3 Mt)</li>
-                <li><strong style="color:#f58518">Own direct</strong> — the sector's own direct emissions (20.7 Mt)</li>
-                <li><strong style="color:#72b7b2">Downstream</strong> — emissions embodied in outputs (27.7 Mt)</li>
+              <h2>Emission Scopes</h2>
+              <p>The total breaks down by scope:</p>
+              <ul id="split-legend">
+                <!-- Populated dynamically from data -->
               </ul>
             </div>
           </div>
@@ -56,8 +61,8 @@
           <div class="step" data-step="4">
             <div class="step-content">
               <h2>The Upstream Story</h2>
-              <p>Nearly <strong>45%</strong> of the total footprint comes from upstream — emissions embodied in inputs from around the world.</p>
-              <p>Where do these 72.1 MtCO₂e come from? Let's trace them back through the supply chain.</p>
+              <p>Nearly <strong><span id="upstream-pct">80%</span></strong> of the total footprint comes from Scope 3 upstream — emissions embodied in inputs from around the world.</p>
+              <p>Where do these <span id="upstream-value">80.6</span> MtCO&#x2082;e come from? Let's trace them back through the supply chain.</p>
             </div>
           </div>
 
@@ -65,8 +70,7 @@
           <div class="step" data-step="5">
             <div class="step-content">
               <h2>Direct Suppliers</h2>
-              <p>The immediate upstream supply chain reveals a diverse set of inputs — metals from China and Germany, energy, chemicals, and vehicle parts from Japan and Korea.</p>
-              <p><strong>China's basic metals sector</strong> alone contributes 12.8 MtCO₂e.</p>
+              <p>The immediate upstream supply chain reveals the key sectors and countries contributing embodied emissions through intermediate inputs.</p>
             </div>
           </div>
 
@@ -76,7 +80,7 @@
               <h2>Deeper in the Supply Chain</h2>
               <p>Keep scrolling to trace emissions further back — from suppliers to their suppliers, and deeper still.</p>
               <p>Each tier reveals another layer of the global emissions network behind a single industry.</p>
-              <p style="opacity:0.5; margin-top:2rem;">↓ Scroll slowly to unfold tiers ↓</p>
+              <p style="opacity:0.5; margin-top:2rem;">&#x2193; Scroll slowly to unfold tiers &#x2193;</p>
             </div>
           </div>
 
@@ -84,8 +88,7 @@
           <div class="step" data-step="7">
             <div class="step-content">
               <h2>Supply Chain Concentration</h2>
-              <p>The upstream network shows significant concentration. The <strong>top 5 supplier nodes</strong> account for a large share of total upstream emissions.</p>
-              <p>Mining and metals — especially from China, Russia, and Australia — dominate the deeper tiers.</p>
+              <p>The upstream network shows the concentration of emissions across supplier tiers. Energy-intensive sectors and resource-extracting industries dominate the deeper tiers.</p>
             </div>
           </div>
 
@@ -94,7 +97,7 @@
             <div class="step-content">
               <h2>Now: The Downstream</h2>
               <p>We've traced where emissions <em>come from</em>. But where do they <em>go</em>?</p>
-              <p>27.7 MtCO₂e are embodied in Germany's motor vehicle <strong>outputs</strong> — flowing downstream through trade and distribution to final consumers.</p>
+              <p><span id="downstream-value">9.4</span> MtCO&#x2082;e are embodied in <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> <strong>outputs</strong> — flowing downstream to final consumers.</p>
             </div>
           </div>
 
@@ -102,7 +105,7 @@
           <div class="step" data-step="9">
             <div class="step-content">
               <h2>Immediate Destinations</h2>
-              <p>German vehicles and parts flow to domestic wholesalers, direct final demand in the US and Germany, and re-export hubs across Europe and China.</p>
+              <p>Outputs flow to domestic and international buyers — wholesalers, final demand, and re-export channels.</p>
             </div>
           </div>
 
@@ -111,17 +114,16 @@
             <div class="step-content">
               <h2>To Final Consumption</h2>
               <p>Scroll to follow these emissions through distribution channels all the way to final consumers around the world.</p>
-              <p style="opacity:0.5; margin-top:2rem;">↓ Scroll slowly to unfold tiers ↓</p>
+              <p style="opacity:0.5; margin-top:2rem;">&#x2193; Scroll slowly to unfold tiers &#x2193;</p>
             </div>
           </div>
 
           <!-- Step 11: End frame -->
           <div class="step" data-step="11">
             <div class="step-content">
-              <h2>Where Emissions End Up</h2>
-              <p>The emissions embodied in German motor vehicles ultimately reach consumers across Europe, Asia, and the Americas.</p>
-              <p>This is the full picture: from raw materials extracted in Mongolia and Russia, through German factories, to driveways in France and parking lots in America.</p>
-              <p style="margin-top: 2rem;"><a href="#" class="explore-link">Explore another country–industry pair →</a></p>
+              <h2>The Full Picture</h2>
+              <p>From raw materials through production to final consumption — this is the complete emissions network for <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> sector.</p>
+              <p style="margin-top: 2rem;"><a href="#" class="explore-link">Explore another country–industry pair &#x2192;</a></p>
             </div>
           </div>
         </div>

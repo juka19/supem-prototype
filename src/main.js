@@ -10,24 +10,184 @@ import { createSankeyLayer } from './layers/SankeyLayer.js';
 import { createTooltip } from './layers/Tooltip.js';
 
 // ── Data loading ──
-async function loadData() {
-  const [topPair, trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3] = await Promise.all([
-    d3.json('/data/top_pair.json'),
-    d3.json('/data/trend_DEU_C29.json'),
-    d3.json('/data/split_DEU_C29_2019.json'),
-    d3.json('/data/sankey/upstream_t1.json'),
-    d3.json('/data/sankey/upstream_t2.json'),
-    d3.json('/data/sankey/upstream_t3.json'),
-    d3.json('/data/sankey/downstream_t1.json'),
-    d3.json('/data/sankey/downstream_t2.json'),
-    d3.json('/data/sankey/downstream_t3.json'),
-  ]);
-  return { topPair, trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3 };
+
+// Determine base URL: use API in production, local files in dev
+const API_BASE = '/api/v1';
+const LOCAL_BASE = '/data/v1';
+
+async function tryFetch(url) {
+  try {
+    return await d3.json(url);
+  } catch {
+    return null;
+  }
+}
+
+async function loadManifest() {
+  // Try API first, fall back to local file
+  let manifest = await tryFetch(`${API_BASE}/manifest`);
+  if (!manifest) manifest = await tryFetch(`${API_BASE}/manifest.json`);
+  if (!manifest) manifest = await tryFetch(`${LOCAL_BASE}/manifest.json`);
+  return manifest;
+}
+
+async function loadPairData(iso3, isic) {
+  // Try API path, fall back to local generated files
+  let base = `${API_BASE}/${iso3}/${isic}`;
+
+  const tryLoad = async (b) => {
+    const [trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3] = await Promise.all([
+      d3.json(`${b}/trend.json`),
+      d3.json(`${b}/split.json`),
+      d3.json(`${b}/sankey_upstream_t1.json`),
+      d3.json(`${b}/sankey_upstream_t2.json`),
+      d3.json(`${b}/sankey_upstream_t3.json`),
+      d3.json(`${b}/sankey_downstream_t1.json`),
+      d3.json(`${b}/sankey_downstream_t2.json`),
+      d3.json(`${b}/sankey_downstream_t3.json`),
+    ]);
+    return { trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3 };
+  };
+
+  try {
+    return await tryLoad(base);
+  } catch {
+    // Fall back to local generated files
+    base = `${LOCAL_BASE}/${iso3}/${isic}`;
+    return await tryLoad(base);
+  }
+}
+
+// ── Dropdown population ──
+
+function populateDropdowns(manifest, onSelect) {
+  const countrySelect = document.getElementById('country-select');
+  const sectorSelect = document.getElementById('sector-select');
+  if (!countrySelect || !sectorSelect) return;
+
+  // Build lookup of available pairs
+  const availablePairs = new Set(manifest.pairs.map(p => `${p.iso3}|${p.isic}`));
+  const countriesWithPairs = new Set(manifest.pairs.map(p => p.iso3));
+  const sectorsWithPairs = new Set(manifest.pairs.map(p => p.isic));
+
+  // Populate country dropdown (only countries that have computed pairs)
+  const countries = manifest.countries
+    .filter(c => countriesWithPairs.has(c.iso3))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  countrySelect.innerHTML = countries
+    .map(c => `<option value="${c.iso3}">${c.name}</option>`)
+    .join('');
+
+  // Populate sector dropdown
+  const sectors = manifest.sectors
+    .filter(s => sectorsWithPairs.has(s.isic))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  sectorSelect.innerHTML = sectors
+    .map(s => `<option value="${s.isic}">${s.name}</option>`)
+    .join('');
+
+  // Update sector options based on selected country
+  function updateSectorOptions(selectedIso3) {
+    const validSectors = manifest.pairs
+      .filter(p => p.iso3 === selectedIso3)
+      .map(p => p.isic);
+    const validSet = new Set(validSectors);
+
+    Array.from(sectorSelect.options).forEach(opt => {
+      opt.disabled = !validSet.has(opt.value);
+    });
+
+    // If current sector is not valid for new country, pick first valid
+    if (!validSet.has(sectorSelect.value)) {
+      const firstValid = sectors.find(s => validSet.has(s.isic));
+      if (firstValid) sectorSelect.value = firstValid.isic;
+    }
+  }
+
+  // Set default to top-ranked pair
+  const defaultPair = manifest.pairs[0];
+  if (defaultPair) {
+    countrySelect.value = defaultPair.iso3;
+    sectorSelect.value = defaultPair.isic;
+    updateSectorOptions(defaultPair.iso3);
+  }
+
+  // Event handlers
+  countrySelect.addEventListener('change', () => {
+    updateSectorOptions(countrySelect.value);
+    onSelect(countrySelect.value, sectorSelect.value);
+  });
+
+  sectorSelect.addEventListener('change', () => {
+    onSelect(countrySelect.value, sectorSelect.value);
+  });
+
+  return { countrySelect, sectorSelect };
+}
+
+// ── Update storyboard text ──
+
+function updateStoryText(data) {
+  const trend = data.trend;
+  const split = data.split;
+  const countryName = trend.countryName;
+  const sectorName = trend.sectorName;
+  const focusYear = split.year;
+  const total = split.total;
+
+  // Find scope values
+  const s3u = split.components.find(c => c.key === 'S3U');
+  const s3d = split.components.find(c => c.key === 'S3D');
+  const s3uPct = s3u ? Math.round(s3u.share * 100) : 0;
+
+  // Update step text content via data attributes
+  document.querySelectorAll('[data-pair-country]').forEach(el => {
+    el.textContent = countryName;
+  });
+  document.querySelectorAll('[data-pair-sector]').forEach(el => {
+    el.textContent = sectorName;
+  });
+  document.querySelectorAll('[data-focus-year]').forEach(el => {
+    el.textContent = focusYear;
+  });
+  document.querySelectorAll('[data-total-value]').forEach(el => {
+    el.textContent = total.toFixed(1);
+  });
+
+  // Update split legend
+  const legendEl = document.getElementById('split-legend');
+  if (legendEl && split.components) {
+    legendEl.innerHTML = split.components
+      .map(c => {
+        const color = COMPONENT_COLORS[c.key] || '#888';
+        return `<li><strong style="color:${color}">${c.label}</strong> — ${c.value.toFixed(1)} Mt</li>`;
+      })
+      .join('');
+  }
+
+  // Update upstream stats
+  const upValueEl = document.getElementById('upstream-value');
+  if (upValueEl && s3u) {
+    upValueEl.textContent = `${s3u.value.toFixed(1)}`;
+  }
+  const upPctEl = document.getElementById('upstream-pct');
+  if (upPctEl) {
+    upPctEl.textContent = `${s3uPct}%`;
+  }
+
+  // Update downstream stats
+  const dnValueEl = document.getElementById('downstream-value');
+  if (dnValueEl && s3d) {
+    dnValueEl.textContent = `${s3d.value.toFixed(1)}`;
+  }
 }
 
 // ── Main ──
 async function main() {
-  const data = await loadData();
+  // Try to load manifest for dynamic mode
+  const manifest = await loadManifest();
 
   // SVG setup
   const svgEl = document.getElementById('viz');
@@ -51,23 +211,33 @@ async function main() {
   const sankeyLayer = createSankeyLayer(svg, { margin, width: W, height: H, tooltip });
   const morphCtrl = createMorphController(svg, { margin });
 
-  // ── Initialize data ──
-  trendLayer.init(data.trend);
-  splitLayer.init(data.split);
+  // ── Scene controller (will be re-created on pair change) ──
+  let controller = null;
+  let currentData = null;
 
-  sankeyLayer.loadTierData('upstream', 1, data.upT1);
-  sankeyLayer.loadTierData('upstream', 2, data.upT2);
-  sankeyLayer.loadTierData('upstream', 3, data.upT3);
-  sankeyLayer.loadTierData('downstream', 1, data.dnT1);
-  sankeyLayer.loadTierData('downstream', 2, data.dnT2);
-  sankeyLayer.loadTierData('downstream', 3, data.dnT3);
+  function initWithData(data) {
+    currentData = data;
 
-  // ── Scene controller ──
-  const controller = createSceneController({
-    focusYear: data.topPair.year,
-    maxTierUpstream: 3,
-    maxTierDownstream: 3,
-  });
+    const focusYear = data.split.year;
+
+    trendLayer.init(data.trend);
+    splitLayer.init(data.split);
+
+    sankeyLayer.loadTierData('upstream', 1, data.upT1);
+    sankeyLayer.loadTierData('upstream', 2, data.upT2);
+    sankeyLayer.loadTierData('upstream', 3, data.upT3);
+    sankeyLayer.loadTierData('downstream', 1, data.dnT1);
+    sankeyLayer.loadTierData('downstream', 2, data.dnT2);
+    sankeyLayer.loadTierData('downstream', 3, data.dnT3);
+
+    controller = createSceneController({
+      focusYear,
+      maxTierUpstream: 3,
+      maxTierDownstream: 3,
+    });
+
+    updateStoryText(data);
+  }
 
   // ── Morph transition handlers ──
 
@@ -78,7 +248,7 @@ async function main() {
 
     morphCtrl.morphTrendToSplit({
       sourceBounds: barBounds,
-      segments: data.split.components,
+      segments: currentData.split.components,
       targetSegments: targetSegs,
       dur,
       onStart: () => {
@@ -95,7 +265,8 @@ async function main() {
   }
 
   function renderMorphB(state, direction, dur) {
-    const segKey = direction;
+    // Map direction to scope key for segment lookup
+    const segKey = direction === 'upstream' ? 'S3U' : 'S3D';
     const segBounds = splitLayer.getSegmentBounds(segKey);
     const rootBounds = sankeyLayer.getRootBounds(direction);
     if (!segBounds || !rootBounds) return false;
@@ -176,9 +347,65 @@ async function main() {
     }
   }
 
-  // Initial render
-  const initialState = controller.onStepEnter(0);
-  render(initialState, 1000);
+  // ── Load and display a pair ──
+  let isLoading = false;
+
+  async function selectPair(iso3, isic) {
+    if (isLoading) return;
+    isLoading = true;
+
+    const loadingEl = document.getElementById('loading-indicator');
+    if (loadingEl) loadingEl.classList.add('visible');
+
+    try {
+      const data = await loadPairData(iso3, isic);
+      initWithData(data);
+
+      // Reset to step 0 and re-render
+      prevMode = null;
+      const initialState = controller.onStepEnter(0);
+      render(initialState, 1000);
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error(`Failed to load data for ${iso3}/${isic}:`, err);
+    } finally {
+      isLoading = false;
+      if (loadingEl) loadingEl.classList.remove('visible');
+    }
+  }
+
+  // ── Initialize with default pair ──
+  if (manifest) {
+    // Dynamic mode: populate dropdowns and load top pair
+    const defaultPair = manifest.pairs[0];
+    populateDropdowns(manifest, selectPair);
+    await selectPair(defaultPair.iso3, defaultPair.isic);
+  } else {
+    // Fallback: load static files (old format)
+    const [topPair, trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3] = await Promise.all([
+      d3.json('/data/top_pair.json'),
+      d3.json('/data/trend_DEU_C29.json'),
+      d3.json('/data/split_DEU_C29_2019.json'),
+      d3.json('/data/sankey/upstream_t1.json'),
+      d3.json('/data/sankey/upstream_t2.json'),
+      d3.json('/data/sankey/upstream_t3.json'),
+      d3.json('/data/sankey/downstream_t1.json'),
+      d3.json('/data/sankey/downstream_t2.json'),
+      d3.json('/data/sankey/downstream_t3.json'),
+    ]);
+    initWithData({ trend, split, upT1, upT2, upT3, dnT1, dnT2, dnT3 });
+
+    controller = createSceneController({
+      focusYear: topPair.year,
+      maxTierUpstream: 3,
+      maxTierDownstream: 3,
+    });
+
+    const initialState = controller.onStepEnter(0);
+    render(initialState, 1000);
+  }
 
   // ── Scrollama setup ──
   const scroller = scrollama();
@@ -190,18 +417,18 @@ async function main() {
       progress: true,
     })
     .onStepEnter(({ index, element }) => {
-      // Mark active step for CSS
       d3.selectAll('.step').classed('is-active', false);
       d3.select(element).classed('is-active', true);
 
-      const state = controller.onStepEnter(index);
-      render(state);
+      if (controller) {
+        const state = controller.onStepEnter(index);
+        render(state);
+      }
     })
     .onStepProgress(({ index, progress }) => {
-      // Only steps 6 and 10 use progress
-      if (index === 6 || index === 10) {
+      if ((index === 6 || index === 10) && controller) {
         const state = controller.onStepProgress(index, progress);
-        render(state, 100); // fast transitions for scroll-driven updates
+        render(state, 100);
       }
     });
 
@@ -209,6 +436,18 @@ async function main() {
   window.addEventListener('resize', () => {
     scroller.resize();
   });
+
+  // "Explore another pair" link
+  const exploreLink = document.querySelector('.explore-link');
+  if (exploreLink) {
+    exploreLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Focus the country selector
+      const sel = document.getElementById('country-select');
+      if (sel) setTimeout(() => sel.focus(), 500);
+    });
+  }
 }
 
 main().catch(console.error);

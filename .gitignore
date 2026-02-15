@@ -12,6 +12,23 @@ dist
 dist-ssr
 *.local
 
+# Local data (never commit raw/intermediate/output)
+data/raw/
+data/intermediate/
+data/out/
+# Keep folder structure + docs
+!data/README.md
+!data/.gitkeep
+
+# Dev symlink to local data (only used for local vite dev server)
+public/data
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
