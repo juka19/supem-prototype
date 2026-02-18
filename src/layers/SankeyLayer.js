@@ -36,6 +36,18 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     tieredData[direction][tier] = data;
   }
 
+  /** Clear all rendered elements and reset state — call when switching pairs. */
+  function clearAll() {
+    linksG.selectAll('*').remove();
+    nodesG.selectAll('*').remove();
+    overlayG.selectAll('*').remove();
+    lastDirection = null;
+    activeNodeMap = null;
+    activeData = null;
+    tieredData = { upstream: {}, downstream: {} };
+    if (tooltip) tooltip.hide();
+  }
+
   function getRootBounds(direction) {
     const isUp = direction === 'upstream';
     const tierKeys = Object.keys(tieredData[direction] || {}).map(Number);
@@ -51,10 +63,15 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const dMaxY = d3.max(data.nodes, n => n.y + n.h) || 1;
     const gW = innerW * 0.92;
     const sX = gW / dMaxX;
-    const sY = (innerH * 0.98) / dMaxY;
+
+    // Same spread-aware scaling as update()
+    const maxTierInData = d3.max(data.nodes, n => n.tier) || 1;
+    const baseTierSpread = { 0: 1.0, 1: 1.0, 2: 1.35, 3: 1.5 };
+    const worstBaseSpread = baseTierSpread[maxTierInData] ?? 1.5;
+    const sY = (innerH * 0.98) / (dMaxY * worstBaseSpread);
     const sc = Math.min(sX, sY);
 
-    const pY = (innerH - dMaxY * sc) / 2;
+    const pY = (innerH - dMaxY * worstBaseSpread * sc) / 2;
     const gpW = dMaxX * sc;
     const pXd = 10;
     const pXu = innerW - gpW - 10;
@@ -65,9 +82,10 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
 
     const rx = isUp ? pxFn(rootNode.x) - rootNode.w * sc : pxFn(rootNode.x);
 
+    // Root is tier 0 → spread factor 1.0
     return {
       x: rx,
-      y: rootNode.y * sc + pY,
+      y: rootNode.y * 1.0 * sc + pY,
       width: rootNode.w * sc,
       height: Math.max(rootNode.h * sc, 3),
     };
@@ -173,10 +191,20 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const dataMaxY = d3.max(data.nodes, n => n.y + n.h) || 1;
     const graphW = innerW * 0.92;
     const scaleX = graphW / dataMaxX;
-    const scaleY = (innerH * 0.98) / dataMaxY;
+
+    // Tier-dependent vertical spread: tiers 0-1 stay compact,
+    // tiers 2+ get progressively more vertical spacing.
+    const baseTierSpread = { 0: 1.0, 1: 1.0, 2: 1.35, 3: 1.5 };
+    const maxTierInData = d3.max(data.nodes, n => n.tier) || 1;
+    const worstBaseSpread = baseTierSpread[maxTierInData] ?? 1.5;
+
+    // Compute scaleY including worst-case spread so graph always fits
+    const scaleY = (innerH * 0.98) / (dataMaxY * worstBaseSpread);
     const scale = Math.min(scaleX, scaleY);
 
-    const padY = (innerH - dataMaxY * scale) / 2;
+    const getSpread = tier => baseTierSpread[tier] ?? 1.5;
+    const spreadMaxY = dataMaxY * worstBaseSpread;
+    const padY = (innerH - spreadMaxY * scale) / 2;
 
     // Downstream: graph anchored left, labels to the right
     // Upstream: graph anchored right (mirrored), labels to the left
@@ -184,7 +212,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const padXdown = 10;
     const padXup = innerW - graphPixelW - 10;
 
-    const py = v => v * scale + padY;
+    const py = (v, tier) => v * getSpread(tier) * scale + padY;
     const ps = v => v * scale;
 
     // px maps a data-x to screen-x, mirroring for upstream
@@ -209,7 +237,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         group: n.group || 'foreign',
         value: n.value || 0,
         rx,
-        ry: py(n.y),
+        ry: py(n.y, n.tier),
         rw: ps(n.w),
         rh: Math.max(ps(n.h), 3),
         origH: n.h,
@@ -451,6 +479,7 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
           const txt = ng.append('text');
           txt.append('tspan').attr('class', 'label-line1');
           txt.append('tspan').attr('class', 'label-line2');
+          txt.append('tspan').attr('class', 'label-line3');
           return ng;
         },
         update => update,
@@ -555,43 +584,83 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
 
     // Upstream: labels to the LEFT of nodes (graph is on the right)
     // Downstream: labels to the RIGHT of nodes (graph is on the left)
+    // For downstream, the LAST visible tier gets left-aligned labels
+    //   (placed to the left of the node) to avoid text being clipped.
+    const lastVisibleTier = visibleTier + (tierAlpha > 0.3 ? 1 : 0);
+
     nodeGroups.each(function(d) {
       const textEl = d3.select(this).select('text');
-      const show = labelSet.has(d.id);
+      const showLabel = labelSet.has(d.id);
       const ly = adjustedLabelY.has(d.id) ? adjustedLabelY.get(d.id) : (d.ry + d.rh / 2);
-      const fontSize = d.tier === 0 ? 12 : 10;
+      const fontSize = d.tier === 0 ? 11 : 9;
 
       let lx, anchor;
       if (isUpstream) {
         lx = d.rx - 6;
         anchor = 'end';
       } else {
-        lx = d.rx + d.rw + 6;
-        anchor = 'start';
+        // Downstream: last visible tier labels go LEFT to avoid clipping
+        if (d.tier === lastVisibleTier && d.tier > 0) {
+          lx = d.rx - 6;
+          anchor = 'end';
+        } else {
+          lx = d.rx + d.rw + 6;
+          anchor = 'start';
+        }
       }
 
       textEl
         .attr('text-anchor', anchor)
-        .attr('fill', show ? COLORS.text : 'transparent');
+        .attr('fill', showLabel ? COLORS.text : 'transparent');
 
       const parts = d.label.split(' \u2013 ');
       const line1 = parts[0] || '';
-      const line2 = parts.slice(1).join(' \u2013 ') || '';
+      // Word-wrap long sector names (split at ~18 chars)
+      let line2 = parts.slice(1).join(' \u2013 ') || '';
+      let line3 = '';
+      if (line2.length > 22) {
+        const words = line2.split(' ');
+        let row1 = '';
+        let splitIdx = 0;
+        for (let wi = 0; wi < words.length; wi++) {
+          const candidate = row1 ? row1 + ' ' + words[wi] : words[wi];
+          if (candidate.length > 20 && row1) { splitIdx = wi; break; }
+          row1 = candidate;
+          splitIdx = wi + 1;
+        }
+        if (splitIdx < words.length) {
+          line2 = words.slice(0, splitIdx).join(' ');
+          line3 = words.slice(splitIdx).join(' ');
+        }
+      }
 
       textEl.select('.label-line1')
         .attr('x', lx)
-        .attr('y', line2 ? ly - 1 : ly + 4)
+        .attr('y', line2 ? ly - (line3 ? 6 : 1) : ly + 4)
         .attr('font-size', fontSize)
         .attr('font-weight', d.tier === 0 ? 700 : 600)
-        .text(show ? line1 : '');
+        .text(showLabel ? line1 : '');
 
       textEl.select('.label-line2')
         .attr('x', lx)
-        .attr('y', line2 ? ly + fontSize + 1 : ly)
+        .attr('y', line2 ? ly - (line3 ? 6 : 1) + fontSize + 1 : ly)
         .attr('font-size', line2 ? fontSize - 1 : 0)
         .attr('font-weight', 400)
-        .attr('fill', show ? COLORS.textMuted : 'transparent')
-        .text(show ? line2 : '');
+        .attr('fill', showLabel ? COLORS.textMuted : 'transparent')
+        .text(showLabel ? line2 : '');
+
+      // Third line for very long names
+      let line3El = textEl.select('.label-line3');
+      if (line3El.empty()) {
+        line3El = textEl.append('tspan').attr('class', 'label-line3');
+      }
+      line3El
+        .attr('x', lx)
+        .attr('y', line2 ? ly - (line3 ? 6 : 1) + (fontSize + 1) * 2 : ly)
+        .attr('font-size', line3 ? fontSize - 1 : 0)
+        .attr('font-weight', 400)
+        .attr('fill', showLabel ? COLORS.textMuted : 'transparent')
+        .text(showLabel ? line3 : '');
     });
 
     // ── Drag behavior ──
@@ -660,6 +729,8 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
 
   function hide(dur = 400) {
     g.transition().duration(dur).attr('opacity', 0);
+    // Clear tooltips when hiding the layer
+    if (tooltip) tooltip.hide();
   }
 
   function setVisible(v, dur) {
@@ -667,5 +738,5 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     else hide(dur);
   }
 
-  return { loadTierData, update, updateOverlay, show, hide, setVisible, getRootBounds, g };
+  return { loadTierData, clearAll, update, updateOverlay, show, hide, setVisible, getRootBounds, g };
 }

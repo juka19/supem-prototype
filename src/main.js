@@ -8,6 +8,7 @@ import { createTrendBarLayer } from './layers/TrendBarLayer.js';
 import { createSplitBarLayer } from './layers/SplitBarLayer.js';
 import { createSankeyLayer } from './layers/SankeyLayer.js';
 import { createTooltip } from './layers/Tooltip.js';
+import { createOnboardingTour } from './lib/onboardingTour.js';
 
 // ── Data loading ──
 
@@ -138,9 +139,9 @@ function updateStoryText(data) {
   const total = split.total;
 
   // Find scope values
-  const s3u = split.components.find(c => c.key === 'S3U');
-  const s3d = split.components.find(c => c.key === 'S3D');
-  const s3uPct = s3u ? Math.round(s3u.share * 100) : 0;
+  const s3u = split.components.find(c => c.key === 'S3U' || c.key === 'upstream');
+  const s3d = split.components.find(c => c.key === 'S3D' || c.key === 'downstream');
+  const s3uPct = s3u ? Math.round((s3u.share ?? s3u.value / split.total) * 100) : 0;
 
   // Update step text content via data attributes
   document.querySelectorAll('[data-pair-country]').forEach(el => {
@@ -223,6 +224,9 @@ async function main() {
     trendLayer.init(data.trend);
     splitLayer.init(data.split);
 
+    // Clear previous Sankey state before loading new pair
+    sankeyLayer.clearAll();
+
     sankeyLayer.loadTierData('upstream', 1, data.upT1);
     sankeyLayer.loadTierData('upstream', 2, data.upT2);
     sankeyLayer.loadTierData('upstream', 3, data.upT3);
@@ -265,9 +269,13 @@ async function main() {
   }
 
   function renderMorphB(state, direction, dur) {
-    // Map direction to scope key for segment lookup
-    const segKey = direction === 'upstream' ? 'S3U' : 'S3D';
-    const segBounds = splitLayer.getSegmentBounds(segKey);
+    // Map direction to scope key for segment lookup — handle both key schemes
+    let segKey = direction === 'upstream' ? 'S3U' : 'S3D';
+    let segBounds = splitLayer.getSegmentBounds(segKey);
+    if (!segBounds) {
+      segKey = direction; // try 'upstream'/'downstream' directly
+      segBounds = splitLayer.getSegmentBounds(segKey);
+    }
     const rootBounds = sankeyLayer.getRootBounds(direction);
     if (!segBounds || !rootBounds) return false;
 
@@ -436,6 +444,10 @@ async function main() {
   window.addEventListener('resize', () => {
     scroller.resize();
   });
+
+  // Onboarding tour (shows once)
+  const tour = createOnboardingTour();
+  tour.start();
 
   // "Explore another pair" link
   const exploreLink = document.querySelector('.explore-link');

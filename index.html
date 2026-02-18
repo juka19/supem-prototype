@@ -24,17 +24,18 @@
           <div class="step" data-step="0">
             <div class="step-content">
               <h2>The Carbon Footprint of Industry</h2>
-              <p>Every sector of every economy leaves a carbon footprint — direct emissions plus all the emissions embedded in its supply chain.</p>
-              <p>Let's look at the data.</p>
+              <p>Every sector of every economy leaves a carbon footprint — not just its own direct emissions, but all the CO₂ embodied in the inputs it sources from global supply chains.</p>
+              <p>Using the OECD Inter-Country Input-Output (ICIO) tables, we trace these emissions through the Leontief inverse <strong>B = (I − A)⁻¹</strong>, where <strong>A</strong> is the technical coefficients matrix.</p>
+              <p>Let's explore the data.</p>
             </div>
           </div>
 
           <!-- Step 1: Reveal highest pair -->
           <div class="step" data-step="1">
             <div class="step-content">
-              <h2>Total Emissions</h2>
-              <p><strong><span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> industry</strong> — total emission footprint across all scopes.</p>
-              <p>At <strong><span data-total-value>100.7</span> MtCO&#x2082;e</strong> in <span data-focus-year>2020</span>.</p>
+              <h2>Total Emissions Over Time</h2>
+              <p><strong><span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> sector</strong> — total carbon footprint including embodied emissions from the full supply chain.</p>
+              <p>At <strong><span data-total-value>100.7</span> MtCO₂e</strong> in <span data-focus-year>2020</span>, computed as <em>e = f̂ · B · y</em>, where <em>f</em> is the direct emission intensity vector and <em>y</em> is final demand.</p>
             </div>
           </div>
 
@@ -42,35 +43,37 @@
           <div class="step" data-step="2">
             <div class="step-content">
               <h2>Focus: <span data-focus-year>2020</span></h2>
-              <p>Let's zoom in on <span data-focus-year>2020</span> and examine what makes up those <span data-total-value>100.7</span> megatonnes.</p>
+              <p>Let's zoom into a single year and decompose the <span data-total-value>100.7</span> MtCO₂e total into its constituent parts.</p>
             </div>
           </div>
 
           <!-- Step 3: Split bar -->
           <div class="step" data-step="3">
             <div class="step-content">
-              <h2>Emission Scopes</h2>
-              <p>The total breaks down by scope:</p>
+              <h2>Emissions Decomposition</h2>
+              <p>The total footprint decomposes into components based on where emissions originate in the production network:</p>
               <ul id="split-legend">
                 <!-- Populated dynamically from data -->
               </ul>
+              <p style="font-size:0.82rem; opacity:0.65; margin-top:0.5rem;">Each component is derived from the power-series expansion of the Leontief inverse: <em>B = I + A + A² + A³ + …</em></p>
             </div>
           </div>
 
           <!-- Step 4: Focus upstream -->
           <div class="step" data-step="4">
             <div class="step-content">
-              <h2>The Upstream Story</h2>
-              <p>Nearly <strong><span id="upstream-pct">80%</span></strong> of the total footprint comes from Scope 3 upstream — emissions embodied in inputs from around the world.</p>
-              <p>Where do these <span id="upstream-value">80.6</span> MtCO&#x2082;e come from? Let's trace them back through the supply chain.</p>
+              <h2>The Upstream Supply Chain</h2>
+              <p>Nearly <strong><span id="upstream-pct">80%</span></strong> of the total footprint originates <em>upstream</em> — emissions embodied in intermediate inputs sourced from suppliers worldwide.</p>
+              <p>These <span id="upstream-value">80.6</span> MtCO₂e correspond to <em>f̂ · (A + A² + A³ + …) · y</em> — each successive power of <strong>A</strong> traces one more layer back through the supply chain.</p>
             </div>
           </div>
 
           <!-- Step 5: Upstream Sankey T1 -->
           <div class="step" data-step="5">
             <div class="step-content">
-              <h2>Direct Suppliers</h2>
-              <p>The immediate upstream supply chain reveals the key sectors and countries contributing embodied emissions through intermediate inputs.</p>
+              <h2>Tier 1: Direct Suppliers</h2>
+              <p>The first layer <em>f̂ · A · y</em> reveals the <strong>direct suppliers</strong> whose production generates the largest emissions for this sector.</p>
+              <p>Each node is a country–industry pair; link width represents the magnitude of embodied emissions flowing through that input channel.</p>
             </div>
           </div>
 
@@ -78,9 +81,9 @@
           <div class="step step-long" data-step="6">
             <div class="step-content">
               <h2>Deeper in the Supply Chain</h2>
-              <p>Keep scrolling to trace emissions further back — from suppliers to their suppliers, and deeper still.</p>
-              <p>Each tier reveals another layer of the global emissions network behind a single industry.</p>
-              <p style="opacity:0.5; margin-top:2rem;">&#x2193; Scroll slowly to unfold tiers &#x2193;</p>
+              <p>Scroll to unfold higher-order terms — <em>A²·y</em> shows suppliers' suppliers, <em>A³·y</em> goes one step further.</p>
+              <p>Each tier reveals another layer of the global production network, weighted by direct emission intensities <em>f</em>.</p>
+              <p style="opacity:0.5; margin-top:2rem;">↓ Scroll slowly to unfold tiers ↓</p>
             </div>
           </div>
 
@@ -88,7 +91,8 @@
           <div class="step" data-step="7">
             <div class="step-content">
               <h2>Supply Chain Concentration</h2>
-              <p>The upstream network shows the concentration of emissions across supplier tiers. Energy-intensive sectors and resource-extracting industries dominate the deeper tiers.</p>
+              <p>The upstream network reveals a pattern common to most manufacturing sectors: energy-intensive industries (metals, chemicals, electricity) and resource extraction dominate the deeper tiers.</p>
+              <p>Emissions concentrate in a few key country–sector nodes, reflecting the structure of global intermediate trade.</p>
             </div>
           </div>
 
@@ -96,8 +100,8 @@
           <div class="step" data-step="8">
             <div class="step-content">
               <h2>Now: The Downstream</h2>
-              <p>We've traced where emissions <em>come from</em>. But where do they <em>go</em>?</p>
-              <p><span id="downstream-value">9.4</span> MtCO&#x2082;e are embodied in <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> <strong>outputs</strong> — flowing downstream to final consumers.</p>
+              <p>We've traced where embodied emissions <em>come from</em>. Now let's follow where they <em>go</em>.</p>
+              <p><span id="downstream-value">9.4</span> MtCO₂e flow <strong>downstream</strong> — embodied in <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> outputs as they reach intermediate buyers and final consumers.</p>
             </div>
           </div>
 
@@ -105,7 +109,8 @@
           <div class="step" data-step="9">
             <div class="step-content">
               <h2>Immediate Destinations</h2>
-              <p>Outputs flow to domestic and international buyers — wholesalers, final demand, and re-export channels.</p>
+              <p>The first downstream tier shows where this sector's output goes — to domestic wholesalers, direct final demand, and international buyers.</p>
+              <p>Link widths represent the emissions embodied in the output flowing to each destination.</p>
             </div>
           </div>
 
@@ -113,8 +118,8 @@
           <div class="step step-long" data-step="10">
             <div class="step-content">
               <h2>To Final Consumption</h2>
-              <p>Scroll to follow these emissions through distribution channels all the way to final consumers around the world.</p>
-              <p style="opacity:0.5; margin-top:2rem;">&#x2193; Scroll slowly to unfold tiers &#x2193;</p>
+              <p>Scroll to trace embodied emissions further downstream — through distribution channels to their final consumption destinations across the world.</p>
+              <p style="opacity:0.5; margin-top:2rem;">↓ Scroll slowly to unfold tiers ↓</p>
             </div>
           </div>
 
@@ -122,8 +127,9 @@
           <div class="step" data-step="11">
             <div class="step-content">
               <h2>The Full Picture</h2>
-              <p>From raw materials through production to final consumption — this is the complete emissions network for <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> sector.</p>
-              <p style="margin-top: 2rem;"><a href="#" class="explore-link">Explore another country–industry pair &#x2192;</a></p>
+              <p>From raw materials through production to final consumption — the complete emissions network for <span data-pair-country>Germany</span>'s <span data-pair-sector>motor vehicle</span> sector, computed via multi-regional input-output analysis.</p>
+              <p style="font-size:0.82rem; opacity:0.6; margin-top:0.6rem;">Methodology based on OECD ICIO tables and the Leontief demand-pull model. See Yamano & Guilhoto (2020) for details.</p>
+              <p style="margin-top: 2rem;"><a href="#" class="explore-link">Explore another country–industry pair →</a></p>
             </div>
           </div>
         </div>

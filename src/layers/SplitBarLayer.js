@@ -51,9 +51,15 @@ export function createSplitBarLayer(svg, { margin, width, height }) {
     });
 
     // Focus key determines which segment is highlighted
+    // Supports both S3U/S3D (pipeline) and upstream/downstream (static) keys
     let focusKey = null;
-    if (state.mode === 'splitBar_upstreamFocus') focusKey = 'S3U';
-    if (state.mode === 'splitBar_downstreamFocus') focusKey = 'S3D';
+    if (state.mode === 'splitBar_upstreamFocus') focusKey = 'upstream';
+    if (state.mode === 'splitBar_downstreamFocus') focusKey = 'downstream';
+    // Check if data uses S3U/S3D keys instead
+    if (focusKey && !components.find(c => c.key === focusKey)) {
+      if (focusKey === 'upstream') focusKey = 'S3U';
+      if (focusKey === 'downstream') focusKey = 'S3D';
+    }
 
     // Bars
     barsG.selectAll('.split-rect')
@@ -87,7 +93,31 @@ export function createSplitBarLayer(svg, { margin, width, height }) {
         return d.key === focusKey ? 1 : 0.15;
       });
 
-    // Labels
+    // Labels — with de-overlap to prevent text overlap for thin segments
+    const labelMinGap = 32; // minimum px between label group centers
+    const rawPositions = stacked.map(d => ({
+      key: d.key,
+      midY: (yScale(d.y0) + yScale(d.y1)) / 2,
+    }));
+
+    // Push apart overlapping labels
+    for (let i = 1; i < rawPositions.length; i++) {
+      const minY = rawPositions[i - 1].midY + labelMinGap;
+      if (rawPositions[i].midY < minY) rawPositions[i].midY = minY;
+    }
+    // Pull back from bottom
+    const maxLabelY = innerH - 10;
+    if (rawPositions.length > 0 && rawPositions[rawPositions.length - 1].midY > maxLabelY) {
+      rawPositions[rawPositions.length - 1].midY = maxLabelY;
+      for (let i = rawPositions.length - 2; i >= 0; i--) {
+        const cap = rawPositions[i + 1].midY - labelMinGap;
+        if (rawPositions[i].midY > cap) rawPositions[i].midY = cap;
+      }
+    }
+    const labelYMap = new Map(rawPositions.map(p => [p.key, p.midY]));
+
+    const labelX = barX + barW + 40; // leave room for elbow leaders
+
     labelsG.selectAll('.split-label-g')
       .data(stacked, d => d.key)
       .join(
@@ -98,10 +128,41 @@ export function createSplitBarLayer(svg, { margin, width, height }) {
           return lg;
         }
       )
-      .each(function(d) {
-        const midY = (yScale(d.y0) + yScale(d.y1)) / 2;
-        const labelX = barX + barW + 16;
+      .each(function(d, i) {
+        const midY = labelYMap.get(d.key);
+        const segMidY = (yScale(d.y0) + yScale(d.y1)) / 2;
         const grp = d3.select(this);
+
+        // Draw elbow leader line if label was pushed away from its segment
+        let leaderPath = grp.select('.split-leader');
+        if (Math.abs(midY - segMidY) > 4) {
+          if (leaderPath.empty()) {
+            leaderPath = grp.insert('path', ':first-child').attr('class', 'split-leader');
+          }
+          // Stagger the elbow X so lines from different segments don't overlap
+          const elbowX = barX + barW + 8 + i * 5;
+          const pathD = `M${barX + barW + 2},${segMidY} L${elbowX},${segMidY} L${elbowX},${midY} L${labelX - 4},${midY}`;
+          leaderPath
+            .transition(t)
+            .attr('d', pathD)
+            .attr('fill', 'none')
+            .attr('stroke', COMPONENT_COLORS[d.key] || '#888')
+            .attr('stroke-width', 1)
+            .attr('stroke-opacity', 0.5);
+        } else {
+          // No displacement — draw a simple horizontal tick
+          if (leaderPath.empty()) {
+            leaderPath = grp.insert('path', ':first-child').attr('class', 'split-leader');
+          }
+          const pathD = `M${barX + barW + 2},${segMidY} L${labelX - 4},${midY}`;
+          leaderPath
+            .transition(t)
+            .attr('d', pathD)
+            .attr('fill', 'none')
+            .attr('stroke', COMPONENT_COLORS[d.key] || '#888')
+            .attr('stroke-width', 1)
+            .attr('stroke-opacity', 0.35);
+        }
 
         grp.select('.split-label-text')
           .transition(t)

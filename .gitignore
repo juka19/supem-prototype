@@ -29,6 +29,9 @@ __pycache__/
 *.egg-info/
 .venv/
 
+# PDFs (methodology docs, not for repo)
+*.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
