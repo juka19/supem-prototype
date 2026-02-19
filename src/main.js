@@ -10,6 +10,14 @@ import { createSankeyLayer } from './layers/SankeyLayer.js';
 import { createTooltip } from './layers/Tooltip.js';
 import { createOnboardingTour } from './lib/onboardingTour.js';
 
+// Cover gateway imports
+import { createCoverState } from './lib/coverState.js';
+import { createToast } from './lib/toast.js';
+import { loadScatterData, createSutLoader } from './data/loadCover.js';
+import { createCountryScatter } from './layers/CountryScatter.js';
+import { createDomesticSutHeatmap } from './layers/DomesticSutHeatmap.js';
+import { createStoryboardDrawer } from './lib/storyboardDrawer.js';
+
 // ── Data loading ──
 
 // Determine base URL: use API in production, local files in dev
@@ -187,8 +195,79 @@ function updateStoryText(data) {
 
 // ── Main ──
 async function main() {
+  // ══ Cover Gateway Setup ══
+  const coverState = createCoverState('CHN');
+  const toast = createToast();
+  const sutLoader = createSutLoader();
+
+  // Drawer (wraps the existing storyboard)
+  const drawer = createStoryboardDrawer({
+    onOpen: () => scroller?.resize(),
+    onClose: () => { /* no-op: cover stays visible behind */ },
+  });
+
   // Try to load manifest for dynamic mode
   const manifest = await loadManifest();
+
+  // ── Scatter & Heatmap ──
+  const scatterData = await loadScatterData();
+
+  const scatter = createCountryScatter('#cover-scatter', { coverState, toast });
+  const heatmap = createDomesticSutHeatmap('#cover-heatmap', {
+    coverState,
+    toast,
+    onCellClick: ({ iso3, supplyISIC }) => {
+      // When a heatmap cell is clicked, open the storyboard for that pair
+      const isic = supplyISIC;
+      if (manifest) {
+        // Verify pair exists in manifest
+        const exists = manifest.pairs.some(p => p.iso3 === iso3 && p.isic === isic);
+        if (!exists) {
+          toast.show(`No supply-chain data for ${iso3} / ${isic} yet`);
+          return;
+        }
+      }
+      drawer.open();
+      selectPair(iso3, isic);
+
+      // Sync dropdowns
+      const cs = document.getElementById('country-select');
+      const ss = document.getElementById('sector-select');
+      if (cs) cs.value = iso3;
+      if (ss) ss.value = isic;
+    },
+  });
+
+  if (scatterData) {
+    scatter.update(scatterData);
+  }
+
+  // React to active country changes → load SUT heatmap
+  coverState.subscribe((s) => {
+    if (!s.activeCountry) return;
+    if (s.lockedCountry) {
+      // Immediate load for locked country
+      sutLoader.loadImmediate(s.activeCountry).then(data => {
+        if (data) heatmap.update(data);
+      });
+    } else {
+      // Debounced load for hover
+      sutLoader.load(
+        s.activeCountry,
+        (data) => heatmap.update(data),
+        (iso3) => {
+          const label = document.getElementById('heatmap-country-label');
+          if (label) label.textContent = iso3 + ' (loading…)';
+        },
+      );
+    }
+  });
+
+  // Load initial SUT heatmap for default country
+  const initialSut = await sutLoader.loadImmediate(coverState.get().activeCountry);
+  if (initialSut) heatmap.update(initialSut);
+
+  // ══ Storyboard (existing logic, now inside the drawer) ══
 
   // SVG setup
   const svgEl = document.getElementById('viz');
@@ -201,7 +280,7 @@ async function main() {
     .attr('viewBox', `0 0 ${W} ${H}`)
     .attr('preserveAspectRatio', 'xMidYMid meet');
 
-  const margin = { top: 60, right: 60, bottom: 60, left: 70 };
+  const margin = { top: 20, right: 20, bottom: 35, left: 70 };
 
   // Tooltip
   const tooltip = createTooltip('#tooltip');
@@ -374,8 +453,13 @@ async function main() {
       const initialState = controller.onStepEnter(0);
       render(initialState, 1000);
 
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll to top within the drawer
+      const drawerBody = document.querySelector('.drawer-body');
+      if (drawerBody) {
+        drawerBody.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } catch (err) {
       console.error(`Failed to load data for ${iso3}/${isic}:`, err);
     } finally {
@@ -416,7 +500,7 @@ async function main() {
   }
 
   // ── Scrollama setup ──
-  const scroller = scrollama();
+  let scroller = scrollama();
 
   scroller
     .setup({
@@ -443,21 +527,25 @@ async function main() {
   // Handle resize
   window.addEventListener('resize', () => {
     scroller.resize();
+    if (scatterData) scatter.resize();
   });
 
-  // Onboarding tour (shows once)
-  const tour = createOnboardingTour();
-  tour.start();
+  // Onboarding tour disabled — cover is self-explanatory
+  // const tour = createOnboardingTour();
+  // tour.start();
 
-  // "Explore another pair" link
+  // "Explore another pair" link — close drawer, return to cover
   const exploreLink = document.querySelector('.explore-link');
   if (exploreLink) {
     exploreLink.addEventListener('click', (e) => {
       e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Focus the country selector
-      const sel = document.getElementById('country-select');
-      if (sel) setTimeout(() => sel.focus(), 500);
+      if (drawer.getIsOpen()) {
+        drawer.close();
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const sel = document.getElementById('country-select');
+        if (sel) setTimeout(() => sel.focus(), 500);
+      }
     });
   }
 }

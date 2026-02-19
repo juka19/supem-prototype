@@ -47,3 +47,24 @@ def write_pair_slices(out_dir, iso3, isic, trend, split, sankey_up, sankey_dn):
 def write_manifest(out_dir, manifest):
     """Write the manifest.json to the output directory."""
     write_json(manifest, os.path.join(out_dir, 'v1', 'manifest.json'))
+
+
+def write_cover_slices(out_dir, scatter, sut_slices):
+    """
+    Write cover gateway JSON files.
+
+    Parameters
+    ----------
+    out_dir : str
+        Base output directory.
+    scatter : dict
+        Scatter plot data (one file).
+    sut_slices : dict
+        Mapping of iso3 -> SUT heatmap data.
+    """
+    cover_dir = os.path.join(out_dir, 'v1', 'cover')
+
+    write_json(scatter, os.path.join(cover_dir, 'scatter.json'))
+
+    for iso3, sut_data in sut_slices.items():
+        write_json(sut_data, os.path.join(cover_dir, f'sut_{iso3}.json'))

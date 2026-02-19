@@ -27,7 +27,7 @@ from pipelines.compute.sankey import compute_upstream_tiers, compute_downstream_
 from pipelines.compute.ranking import rank_pairs
 from pipelines.compute.manifest import build_manifest
 from pipelines.layout.sankey_layout import layout_sankey
-from pipelines.storage.local import write_pair_slices, write_manifest
+from pipelines.storage.local import write_pair_slices, write_manifest, write_cover_slices
 
 
 # Default paths
@@ -148,6 +148,48 @@ def compute(top_n, pair, top_k, min_share):
         write_manifest(OUT_DIR, manifest)
         click.echo(f'Manifest written with {len(ranked_for_manifest)} pairs')
 
+    click.echo('Done!')
+
+
+@cli.command()
+def cover():
+    """Compute cover gateway data (scatter + SUT heatmaps)."""
+    from pipelines.compute.scatter import build_scatter_slice
+    from pipelines.compute.sut import build_sut_slice
+
+    click.echo('Loading emissions data...')
+    df = parse_emissions(EMISSIONS_PATH)
+    em = EmissionsLookup(df)
+
+    click.echo(f'Loading ICIO for {FOCUS_YEAR}...')
+    icio = parse_icio(
+        os.path.join(ICIO_DIR, f'{FOCUS_YEAR}_SML.csv'),
+        cache_dir=CACHE_DIR,
+    )
+
+    # Build S1 emissions vector for ICIO alignment
+    N = len(icio['labels'])
+    e_s1 = np.zeros(N)
+    for i, lbl in enumerate(icio['labels']):
+        iso3, isic = lbl[:3], lbl[4:]
+        e_s1[i] = em.get(FOCUS_YEAR, iso3, isic, 'S1')
+
+    # Scatter
+    click.echo('Building scatter slice...')
+    scatter = build_scatter_slice(em, FOCUS_YEAR)
+
+    # SUT heatmaps — one per country
+    countries = sorted(set(c[:3] for c in icio['labels']))
+    sut_slices = {}
+    total = len(countries)
+    for i, c_iso3 in enumerate(countries):
+        click.echo(f'  [{i+1}/{total}] SUT heatmap for {c_iso3}...')
+        sut = build_sut_slice(icio, e_s1, c_iso3, FOCUS_YEAR)
+        if sut is not None:
+            sut_slices[c_iso3] = sut
+
+    click.echo(f'Writing cover slices ({1 + len(sut_slices)} files)...')
+    write_cover_slices(OUT_DIR, scatter, sut_slices)
     click.echo('Done!')
 
 

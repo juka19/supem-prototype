@@ -69,25 +69,26 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const baseTierSpread = { 0: 1.0, 1: 1.0, 2: 1.35, 3: 1.5 };
     const worstBaseSpread = baseTierSpread[maxTierInData] ?? 1.5;
     const sY = (innerH * 0.98) / (dMaxY * worstBaseSpread);
-    const sc = Math.min(sX, sY);
+    // Independent X/Y scales: prevents outlier countries (e.g. CHN) from
+    // squishing the graph when min(sX, sY) collapses to a tiny value.
 
-    const pY = (innerH - dMaxY * worstBaseSpread * sc) / 2;
-    const gpW = dMaxX * sc;
+    const pY = (innerH - dMaxY * worstBaseSpread * sY) / 2;
+    const gpW = dMaxX * sX;
     const pXd = 10;
     const pXu = innerW - gpW - 10;
 
     const pxFn = isUp
-      ? v => pXu + (dMaxX - v) * sc
-      : v => pXd + v * sc;
+      ? v => pXu + (dMaxX - v) * sX
+      : v => pXd + v * sX;
 
-    const rx = isUp ? pxFn(rootNode.x) - rootNode.w * sc : pxFn(rootNode.x);
+    const rx = isUp ? pxFn(rootNode.x) - rootNode.w * sX : pxFn(rootNode.x);
 
     // Root is tier 0 → spread factor 1.0
     return {
       x: rx,
-      y: rootNode.y * 1.0 * sc + pY,
-      width: rootNode.w * sc,
-      height: Math.max(rootNode.h * sc, 3),
+      y: rootNode.y * 1.0 * sY + pY,
+      width: rootNode.w * sX,
+      height: Math.max(rootNode.h * sY, 3),
     };
   }
 
@@ -198,27 +199,28 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const maxTierInData = d3.max(data.nodes, n => n.tier) || 1;
     const worstBaseSpread = baseTierSpread[maxTierInData] ?? 1.5;
 
-    // Compute scaleY including worst-case spread so graph always fits
+    // Independent X/Y scales: prevents outlier countries (e.g. CHN) from
+    // squishing the graph when min(scaleX, scaleY) collapses to a tiny value.
     const scaleY = (innerH * 0.98) / (dataMaxY * worstBaseSpread);
-    const scale = Math.min(scaleX, scaleY);
 
     const getSpread = tier => baseTierSpread[tier] ?? 1.5;
     const spreadMaxY = dataMaxY * worstBaseSpread;
-    const padY = (innerH - spreadMaxY * scale) / 2;
+    const padY = (innerH - spreadMaxY * scaleY) / 2;
 
     // Downstream: graph anchored left, labels to the right
     // Upstream: graph anchored right (mirrored), labels to the left
-    const graphPixelW = dataMaxX * scale;
+    const graphPixelW = dataMaxX * scaleX;
     const padXdown = 10;
     const padXup = innerW - graphPixelW - 10;
 
-    const py = (v, tier) => v * getSpread(tier) * scale + padY;
-    const ps = v => v * scale;
+    const py = (v, tier) => v * getSpread(tier) * scaleY + padY;
+    const psX = v => v * scaleX;
+    const psY = v => v * scaleY;
 
     // px maps a data-x to screen-x, mirroring for upstream
     const px = isUpstream
-      ? v => padXup + (dataMaxX - v) * scale
-      : v => padXdown + v * scale;
+      ? v => padXup + (dataMaxX - v) * scaleX
+      : v => padXdown + v * scaleX;
 
     const t = d3.transition().duration(dur);
     const isScrollDriven = dur <= 150;
@@ -228,8 +230,8 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
     const nodeData = data.nodes.map(n => {
       // For upstream mirror, px(n.x) gives the mirrored position of the
       // node's original left edge, which becomes the right edge after flip.
-      // The left edge is then px(n.x) - ps(n.w).
-      const rx = isUpstream ? px(n.x) - ps(n.w) : px(n.x);
+      // The left edge is then px(n.x) - psX(n.w).
+      const rx = isUpstream ? px(n.x) - psX(n.w) : px(n.x);
       const nd = {
         id: n.id,
         label: n.label,
@@ -238,8 +240,8 @@ export function createSankeyLayer(svg, { margin, width, height, tooltip }) {
         value: n.value || 0,
         rx,
         ry: py(n.y, n.tier),
-        rw: ps(n.w),
-        rh: Math.max(ps(n.h), 3),
+        rw: psX(n.w),
+        rh: Math.max(psY(n.h), 3),
         origH: n.h,
       };
       nodeMap.set(n.id, nd);

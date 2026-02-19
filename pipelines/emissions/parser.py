@@ -94,6 +94,28 @@ class EmissionsLookup:
         mask = (self._df['year'] == year) & (self._df['scope'] == '_T')
         return self._df.loc[mask, ['iso3', 'isic', 'value']].copy()
 
+    def get_country_aggregates(self, year):
+        """
+        Aggregate emissions for each country across all sectors, by scope.
+
+        Returns
+        -------
+        pd.DataFrame with columns: iso3, S1, S2, S3U, S3D, _T
+        """
+        import pandas as pd
+
+        mask = self._df['year'] == year
+        sub = self._df.loc[mask, ['iso3', 'scope', 'value']]
+        pivoted = sub.groupby(['iso3', 'scope'])['value'].sum().unstack(fill_value=0)
+
+        # Ensure all expected columns exist
+        for col in ['S1', 'S2', 'S3U', 'S3D', '_T']:
+            if col not in pivoted.columns:
+                pivoted[col] = 0.0
+
+        pivoted = pivoted.reset_index()
+        return pivoted
+
     @property
     def years(self):
         """Available years in the dataset."""

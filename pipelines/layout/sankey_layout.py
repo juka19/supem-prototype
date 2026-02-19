@@ -61,21 +61,12 @@ def layout_sankey(sankey_data, direction, max_tier):
                            -n.get('value', 0))
         )
 
-    # Compute scale factor: find the tier with the largest total value
-    # and make its nodes fill the available vertical space.
-    max_tier_height = 0
-    for t, tier_nodes in by_tier.items():
-        if t == 0:
-            continue  # root gets special treatment
-        total_h = sum(n.get('value', 0) for n in tier_nodes)
-        tier_pad = PAD_Y_OUTER if t >= 2 else PAD_Y
-        total_h += tier_pad * max(0, len(tier_nodes) - 1)
-        max_tier_height = max(max_tier_height, total_h)
+    # Compute scale factor: normalize all diagrams to a fixed target height
+    # so that frontend coordinate scaling is consistent across countries.
+    # Without this, outlier countries (e.g. CHN) with huge emission values
+    # produce enormous y/h coordinates that break frontend positioning.
+    FIXED_TARGET_HEIGHT = 500
 
-    # Target height for the diagram (in data units)
-    target_height = max(max_tier_height, 100)
-
-    # Scale factor: map values to pixel heights
     max_tier_val = 0
     for t, tier_nodes in by_tier.items():
         if t == 0:
@@ -84,8 +75,11 @@ def layout_sankey(sankey_data, direction, max_tier):
         if total_val > max_tier_val:
             max_tier_val = total_val
 
+    # Target height for the diagram (in data units)
+    target_height = FIXED_TARGET_HEIGHT
+
     if max_tier_val > 0:
-        # Allow 90% of available height for nodes, rest for padding
+        # Scale values so the tallest tier fills ~90% of the fixed target height
         available_h = target_height * 0.9
         val_scale = available_h / max_tier_val
     else:

@@ -4,7 +4,7 @@
  * Persists dismissal in localStorage so it only shows once.
  */
 export function createOnboardingTour() {
-  const STORAGE_KEY = 'icio-story-tour-done';
+  const STORAGE_KEY = 'icio-cover-tour-done';
 
   // Check if tour was already completed/skipped
   if (localStorage.getItem(STORAGE_KEY)) {
@@ -13,21 +13,21 @@ export function createOnboardingTour() {
 
   const steps = [
     {
-      target: '#pair-selector',
-      title: 'Country & Sector Selector',
-      text: 'Choose any country–sector combination to explore its carbon footprint across the global supply chain.',
-      position: 'bottom',
-    },
-    {
-      target: '#scroll-steps .step[data-step="0"]',
-      title: 'Scroll to Explore',
-      text: 'Scroll down to walk through the story — from total emissions to a full upstream and downstream supply-chain decomposition.',
+      target: '#cover-scatter',
+      title: 'Country Scatter Plot',
+      text: 'Each bubble is a country. X-axis = direct production emissions (S1), Y-axis = net embodied imports (S3U − S3D). Hover to preview, click to lock a country.',
       position: 'right',
     },
     {
-      target: '#sticky-viz',
-      title: 'Interactive Visualization',
-      text: 'The chart on the right updates as you scroll. In the Sankey diagrams, you can drag nodes and hover for details.',
+      target: '#cover-heatmap',
+      title: 'Domestic Emission Flows',
+      text: 'This heatmap shows emission-weighted inter-industry flows within the selected country. Rows = supplying sectors, columns = using sectors.',
+      position: 'left',
+    },
+    {
+      target: '#cover-heatmap',
+      title: 'Dive into a Sector',
+      text: 'Click any cell to open the full supply-chain story for that country–sector pair — tracing upstream and downstream emissions through the global production network.',
       position: 'left',
     },
   ];
